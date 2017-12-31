@@ -1,0 +1,7 @@
+{
+  "name": "qreact",
+  "version": "0.0.1",
+  "main": "qreact.js",
+  "author": "Minh Quy <sugiacupit@gmail.com>",
+  "license": "MIT"
+}
