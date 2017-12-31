@@ -1,7 +1,18 @@
 {
   "name": "qreact",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "main": "qreact.js",
   "author": "Minh Quy <sugiacupit@gmail.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "build": "webpack --progress --colors"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "babel-plugin-transform-class-properties": "^6.24.1",
+    "babel-plugin-transform-react-jsx": "^6.24.1",
+    "babel-preset-stage-2": "^6.24.1",
+    "webpack": "^3.10.0"
+  }
 }
