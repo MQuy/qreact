@@ -7,7 +7,7 @@ function createElement(type, config, ...children) {
 
   if (Array.isArray(props.children)) {
     props.children = props.children.map((child) => mapElement(child));
-  } else if (type != 'TEXT_ELEMENT') {
+  } else if (type != 'TEXT_ELEMENT' && props.children) {
     props.children = mapElement(props.children);
   }
 

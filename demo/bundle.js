@@ -79,7 +79,7 @@ function instantiateComponent(element) {
     wrapperInstance = new __WEBPACK_IMPORTED_MODULE_0__DomComponent__["a" /* default */](element);
   } else if (typeof type == 'function') {
     wrapperInstance = new type(props);
-    wrapperInstance.setInternalElement = element;
+    wrapperInstance.setInternalElement(element);
   }
   return wrapperInstance;
 }
@@ -113,11 +113,16 @@ function replaceNode(node, newNode) {
   node.parentNode.replaceNode(newNode);
 }
 
+function removeChild(node, child) {
+  node.removeChild(child);
+}
+
 /* harmony default export */ __webpack_exports__["a"] = ({
   empty,
   appendChild,
   appendChildren,
-  replaceNode
+  replaceNode,
+  removeChild
 });
 
 /***/ }),
@@ -129,14 +134,25 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__qreact__ = __webpack_require__(3);
 
 
-const stories = [{ name: "[Webpack] — Smart Loading Assets For Production", url: "https://hackernoon.com/webpack-smart-loading-assets-for-production-3571e0a29c2e" }, { name: "V8 Engine Overview", url: "https://medium.com/@MQuy90/v8-engine-overview-7c965731ced4" }];
-
 class App extends __WEBPACK_IMPORTED_MODULE_0__qreact__["a" /* Component */] {
   constructor(props) {
     super(props);
+
+    this.removeStory = story => () => {
+      const { stories } = this.state;
+
+      const index = stories.findIndex(s => s.id == story.id);
+      stories.splice(index, 1);
+
+      this.setState(stories);
+    };
+
+    this.state = {
+      stories: [{ id: 1, name: "[Webpack] — Smart Loading Assets For Production", url: "https://hackernoon.com/webpack-smart-loading-assets-for-production-3571e0a29c2e" }, { id: 2, name: "V8 Engine Overview", url: "https://medium.com/@MQuy90/v8-engine-overview-7c965731ced4" }]
+    };
   }
   render() {
-    const { stories } = this.props;
+    const { stories } = this.state;
 
     return Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["b" /* createElement */])(
       "div",
@@ -144,7 +160,7 @@ class App extends __WEBPACK_IMPORTED_MODULE_0__qreact__["a" /* Component */] {
       Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["b" /* createElement */])(
         "ul",
         null,
-        stories.map(story => Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["b" /* createElement */])(Story, { story: story }))
+        stories.map(story => Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["b" /* createElement */])(Story, { story: story, onRemove: this.removeStory }))
       )
     );
   }
@@ -163,7 +179,7 @@ class Story extends __WEBPACK_IMPORTED_MODULE_0__qreact__["a" /* Component */] {
     this.state = { likes: Math.ceil(Math.random() * 100) };
   }
   render() {
-    const { story } = this.props;
+    const { story, onRemove } = this.props;
     const { likes } = this.state;
 
     return Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["b" /* createElement */])(
@@ -179,12 +195,17 @@ class Story extends __WEBPACK_IMPORTED_MODULE_0__qreact__["a" /* Component */] {
         "a",
         { href: story.url },
         story.name
+      ),
+      Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["b" /* createElement */])(
+        "button",
+        { onClick: onRemove(story) },
+        "Remove"
       )
     );
   }
 }
 
-Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["c" /* render */])(Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["b" /* createElement */])(App, { stories: stories }), document.getElementById("root"));
+Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["c" /* render */])(Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["b" /* createElement */])(App, null), document.getElementById("root"));
 
 /***/ }),
 /* 3 */
@@ -243,6 +264,12 @@ function mount(element, node) {
   incrementId++;
 }
 
+function update(element, node) {
+  const componentId = node[DOM_KEY];
+
+  reactInstances[componentId].reconcile();
+}
+
 /* harmony default export */ __webpack_exports__["a"] = (render);
 
 /***/ }),
@@ -293,8 +320,21 @@ class DomComponent {
         const childElement = children[i];
         const renderedComponent = this._renderedChildren[i];
 
-        renderedComponent.reconcile(childElement);
+        if (!renderedComponent) {
+          const component = Object(__WEBPACK_IMPORTED_MODULE_1__instantiateComponent__["a" /* default */])(childElement);
+
+          component.instantiate();
+          this._renderedChildren.push(component);
+          __WEBPACK_IMPORTED_MODULE_0__DOM__["a" /* default */].appendChild(this._domNode, component.getInternalDom());
+        } else if (!childElement) {
+          this._renderedChildren[i] = null;
+          __WEBPACK_IMPORTED_MODULE_0__DOM__["a" /* default */].removeChild(this._domNode, renderedComponent.getInternalDom());
+        } else {
+          renderedComponent.reconcile(childElement);
+        }
       }
+
+      this._renderedChildren = this._renderedChildren.filter(child => child);
     }
   }
   _createInitialDOMChildren(props) {
@@ -357,7 +397,7 @@ function createElement(type, config, ...children) {
 
   if (Array.isArray(props.children)) {
     props.children = props.children.map(child => mapElement(child));
-  } else if (type != 'TEXT_ELEMENT') {
+  } else if (type != 'TEXT_ELEMENT' && props.children) {
     props.children = mapElement(props.children);
   }
 
@@ -382,12 +422,16 @@ class Component {
   constructor(props) {
     this.props = props;
     this.state = {};
+    console.log(this);
   }
   setState(partialState) {
     Object.assign(this.state, partialState);
-    this.reconcile();
+    this.reconcile(this._element);
   }
-  reconcile() {
+  reconcile(nextElement) {
+    this._element = nextElement;
+    this.props = nextElement.props;
+
     const currentRenderedElement = this._renderedComponent.getInternalElement();
     const nextRenderedElement = this.render();
 

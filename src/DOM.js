@@ -20,9 +20,14 @@ function replaceNode(node, newNode) {
   node.parentNode.replaceNode(newNode);
 }
 
+function removeChild(node, child) {
+  node.removeChild(child);
+}
+
 export default {
   empty,
   appendChild,
   appendChildren,
   replaceNode,
+  removeChild,
 }

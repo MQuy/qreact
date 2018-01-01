@@ -31,4 +31,10 @@ function mount(element, node) {
   incrementId++;
 }
 
+function update(element, node) {
+  const componentId = node[DOM_KEY];
+
+  reactInstances[componentId].reconcile();
+}
+
 export default render;

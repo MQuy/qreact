@@ -7,9 +7,12 @@ class Component {
   }
   setState(partialState) {
     Object.assign(this.state, partialState);
-    this.reconcile();
+    this.reconcile(this._element);
   }
-  reconcile() {
+  reconcile(nextElement) {
+    this._element = nextElement;
+    this.props = nextElement.props;
+
     const currentRenderedElement = this._renderedComponent.getInternalElement();
     const nextRenderedElement = this.render();
 

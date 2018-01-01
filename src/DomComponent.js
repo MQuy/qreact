@@ -39,8 +39,21 @@ class DomComponent {
         const childElement = children[i];
         const renderedComponent = this._renderedChildren[i];
 
-        renderedComponent.reconcile(childElement);
+        if (!renderedComponent) {
+          const component = instantiateComponent(childElement);
+
+          component.instantiate();
+          this._renderedChildren.push(component);
+          DOM.appendChild(this._domNode, component.getInternalDom());
+        } else if (!childElement) {
+          this._renderedChildren[i] = null;
+          DOM.removeChild(this._domNode, renderedComponent.getInternalDom());
+        } else {
+          renderedComponent.reconcile(childElement);
+        }
       }
+
+      this._renderedChildren = this._renderedChildren.filter((child) => child);
     }
   }
   _createInitialDOMChildren(props) {
