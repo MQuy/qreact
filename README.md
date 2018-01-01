@@ -4,9 +4,9 @@ The dead simple implementation of React for the learning purpose on how React wo
 
 ### Todo List
 
-- [x] Mount
+- [x] render, Component, createElement
 - [x] Reconciliation
-- [ ] Unmount
+- [ ] Batching
 - [ ] Better reconciliation
 - [ ] Global event handler
 - [ ] Fiber
