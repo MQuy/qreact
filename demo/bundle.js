@@ -68,116 +68,28 @@
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony export (immutable) */ __webpack_exports__["a"] = render;
-/* harmony export (immutable) */ __webpack_exports__["b"] = reconcile;
-let rootInstance = null;
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DomComponent__ = __webpack_require__(7);
 
-function render(element, parentDom) {
-  const prevInstance = rootInstance;
-  const nextInstance = reconcile(parentDom, prevInstance, element);
-  rootInstance = nextInstance;
-}
 
-function reconcile(parentDom, prevInstance, element) {
-  if (!prevInstance) {
-    const newInstance = instantiate(element);
-    parentDom.appendChild(newInstance.dom);
-    return newInstance;
-  } else if (!element) {
-    parentDom.removeChild(prevInstance.dom);
-    return null;
-  } else if (prevInstance.element.type != element.type) {
-    const newInstance = instantiate(element);
-    parentDom.replaceChild(newInstance.dom, prevInstance.dom);
-    return newInstance;
-  } else if (typeof element.type == 'string') {
-    updateDomProperties(prevInstance.dom, prevInstance.element.props, element.props);
-    prevInstance.childInstances = reconcileChildren(prevInstance, element);
-    prevInstance.element = element;
-    return prevInstance;
-  } else {
-    prevInstance.publicInstance.props = element.props;
-    const childElement = prevInstance.publicInstance.render();
-    const oldChildInstance = prevInstance.childInstance;
-    const childInstance = reconcile(parentDom, oldChildInstance, childElement);
-
-    prevInstance.dom = childInstance.dom;
-    prevInstance.childInstance = childInstance;
-    prevInstance.element = element;
-    return prevInstance;
-  }
-}
-
-function reconcileChildren(instance, element) {
-  const dom = instance.dom;
-  const childInstances = instance.childInstances;
-  const nextChildElements = element.props.children || [];
-  const newChildInstances = [];
-  const count = Math.max(childInstances.length, nextChildElements.length);
-
-  for (let i = 0; i < count; i++) {
-    const childInstance = childInstances[i];
-    const childElement = nextChildElements[i];
-    const newChildInstance = reconcile(dom, childInstance, childElement);
-    newChildInstances.push(newChildInstance);
-  }
-  return newChildInstances;
-}
-
-function createPublicInstance(element, internalInstance) {
+function instantiateComponent(element) {
   const { type, props } = element;
-  const publicInstance = new type(props);
-  publicInstance.__internalInstance = internalInstance;
-  return publicInstance;
-}
+  let wrapperInstance;
 
-function instantiate(element) {
-  const { type, props } = element;
-
-  if (typeof type === 'string') {
-    const dom = type == "TEXT_ELEMENT" ? document.createTextNode("") : document.createElement(type);
-
-    updateDomProperties(dom, [], props);
-
-    const childElements = props.children || [];
-    const childInstances = childElements.map(instantiate);
-
-    childInstances.map(childInstance => childInstance.dom).forEach(childDom => dom.appendChild(childDom));
-
-    const instance = { dom, element, childInstances };
-    return instance;
+  if (typeof type == 'string') {
+    wrapperInstance = new __WEBPACK_IMPORTED_MODULE_0__DomComponent__["a" /* default */](element);
+  } else if (typeof type == 'function') {
+    wrapperInstance = new type(props);
+    wrapperInstance.setInternalElement = element;
   } else {
-    const instance = {};
-    const publicInstance = createPublicInstance(element, instance);
-    const childElement = publicInstance.render();
-    const childInstance = instantiate(childElement);
-    const dom = childInstance.dom;
-
-    Object.assign(instance, { dom, element, childInstance, publicInstance });
-    return instance;
+    wrapperInstance = new __WEBPACK_IMPORTED_MODULE_0__DomComponent__["a" /* default */]({
+      type: 'span',
+      props: { children: element }
+    });
   }
+  return wrapperInstance;
 }
 
-function updateDomProperties(dom, prevProps, nextProps) {
-  const isEvent = name => name.startsWith("on");
-  const isAttribute = name => !isEvent(name) && name != "children";
-
-  Object.keys(prevProps).filter(isEvent).forEach(name => {
-    const eventType = name.toLowerCase().substring(2);
-    dom.removeEventListener(eventType, prevProps[name]);
-  });
-
-  Object.keys(prevProps).filter(isAttribute).forEach(name => {
-    dom[name] = null;
-  });
-
-  Object.keys(nextProps).filter(isEvent).forEach(name => {
-    const eventType = name.toLowerCase().substring(2);
-    dom.addEventListener(eventType, nextProps[name]);
-  });
-
-  Object.keys(nextProps).filter(isAttribute).forEach(propName => dom[propName] = nextProps[propName]);
-}
+/* harmony default export */ __webpack_exports__["a"] = (instantiateComponent);
 
 /***/ }),
 /* 1 */
@@ -250,9 +162,9 @@ Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["c" /* render */])(Object(__WEBPACK
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__src_render__ = __webpack_require__(0);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__src_createElement__ = __webpack_require__(3);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__src_Component__ = __webpack_require__(4);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__src_render__ = __webpack_require__(3);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__src_createElement__ = __webpack_require__(5);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__src_Component__ = __webpack_require__(6);
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return __WEBPACK_IMPORTED_MODULE_0__src_render__["a"]; });
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return __WEBPACK_IMPORTED_MODULE_1__src_createElement__["a"]; });
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return __WEBPACK_IMPORTED_MODULE_2__src_Component__["a"]; });
@@ -267,43 +179,186 @@ Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["c" /* render */])(Object(__WEBPACK
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony export (immutable) */ __webpack_exports__["a"] = createElement;
-function createElement(type, config, ...args) {
-  const props = Object.assign({}, config);
-  const children = args.length > 0 ? [].concat(...args) : [];
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DOM__ = __webpack_require__(4);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__instantiateComponent__ = __webpack_require__(0);
 
-  props.children = children.filter(child => child).map(child => child instanceof Object ? child : createElement('TEXT_ELEMENT', { nodeValue: child }));
 
-  return { type, props };
+
+const DOM_KEY = 'QREACT';
+const reactInstances = {};
+let incrementId = 0;
+
+function isRendered(node) {
+  return node.dataset[DOM_KEY];
 }
+
+function render(element, node) {
+  if (!isRendered(node)) {
+    mount(element, node);
+  } else {
+    update(element, node);
+  }
+}
+
+function mount(element, node) {
+  node.dataset[DOM_KEY] = incrementId;
+
+  const component = Object(__WEBPACK_IMPORTED_MODULE_1__instantiateComponent__["a" /* default */])(element);
+
+  reactInstances[incrementId] = component;
+  component.instantiate();
+
+  __WEBPACK_IMPORTED_MODULE_0__DOM__["a" /* default */].empty(node);
+  __WEBPACK_IMPORTED_MODULE_0__DOM__["a" /* default */].appendChild(node, component.getInternalDom());
+
+  incrementId++;
+}
+
+/* harmony default export */ __webpack_exports__["a"] = (render);
 
 /***/ }),
 /* 4 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__render__ = __webpack_require__(0);
+function empty(node) {
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+}
+
+function appendChild(dom, child) {
+  dom.appendChild(child);
+}
+
+function appendChildren(node, children) {
+  if (Array.isArray(children)) {
+    children.forEach(child => appendChild(node, child));
+  } else {
+    appendChild(node, children);
+  }
+}
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  empty,
+  appendChild,
+  appendChildren
+});
+
+/***/ }),
+/* 5 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+function createElement(type, config, ...children) {
+  const props = Object.assign({}, config);
+
+  if (children.length > 0) {
+    props.children = [].concat(...children);
+  }
+
+  return { type, props };
+}
+
+/* harmony default export */ __webpack_exports__["a"] = (createElement);
+
+/***/ }),
+/* 6 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__instantiateComponent__ = __webpack_require__(0);
 
 
 class Component {
   constructor(props) {
     this.props = props;
-    this.state = this.state || {};
+    this.state = {};
   }
+  instantiate() {
+    const renderedElement = this.render();
+    const renderedComponent = Object(__WEBPACK_IMPORTED_MODULE_0__instantiateComponent__["a" /* default */])(renderedElement);
 
-  setState(partialState) {
-    this.state = Object.assign({}, this.state, partialState);
-    updateInstance(this.__internalInstance);
+    this._renderedComponent = renderedComponent;
+    renderedComponent.instantiate();
+  }
+  getInternalDom() {
+    return this._renderedComponent.getInternalDom();
+  }
+  setInternalElement(element) {
+    this._element = element;
   }
 }
 
-function updateInstance(internalInstance) {
-  const parentDom = internalInstance.dom.parentDom;
-  const element = internalInstance.element;
-
-  Object(__WEBPACK_IMPORTED_MODULE_0__render__["b" /* reconcile */])(parentDom, internalInstance, element);
-}
 /* harmony default export */ __webpack_exports__["a"] = (Component);
+
+/***/ }),
+/* 7 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DOM__ = __webpack_require__(4);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__instantiateComponent__ = __webpack_require__(0);
+
+
+
+class DomComponent {
+  constructor(element) {
+    this._element = element;
+    this._domNode = null;
+  }
+  instantiate() {
+    const { type, props } = this._element;
+
+    this._domNode = document.createElement(type);
+    this._updateDOMProperties({}, props);
+    this._createInitialDOMChildren(props);
+
+    return this;
+  }
+  getInternalDom() {
+    return this._domNode;
+  }
+  _createInitialDOMChildren(props) {
+    const { children } = props;
+
+    if (['string', 'number'].indexOf(typeof children) !== -1) {
+      this._domNode.textContent = children;
+    } else {
+      this._renderedChildren = children.map(child => Object(__WEBPACK_IMPORTED_MODULE_1__instantiateComponent__["a" /* default */])(child));
+      this._renderedChildren.forEach(child => child.instantiate());
+
+      const domChildren = this._renderedChildren.map(child => child.getInternalDom());
+
+      __WEBPACK_IMPORTED_MODULE_0__DOM__["a" /* default */].appendChildren(this._domNode, domChildren);
+    }
+  }
+  _updateDOMProperties(prevProps, nextProps) {
+    const isEvent = name => name.startsWith("on");
+    const isAttribute = name => !isEvent(name) && name != "children" && name != "style";
+
+    Object.keys(prevProps).filter(isEvent).forEach(name => {
+      const eventType = name.toLowerCase().substring(2);
+      this._domNode.removeEventListener(eventType, prevProps[name]);
+    });
+
+    Object.keys(prevProps).filter(isAttribute).forEach(name => {
+      this._domNode[name] = null;
+    });
+
+    Object.keys(nextProps).filter(isAttribute).forEach(name => {
+      this._domNode[name] = nextProps[name];
+    });
+
+    Object.keys(nextProps).filter(isEvent).forEach(name => {
+      const eventType = name.toLowerCase().substring(2);
+      this._domNode.addEventListener(eventType, nextProps[name]);
+    });
+  }
+}
+
+/* harmony default export */ __webpack_exports__["a"] = (DomComponent);
 
 /***/ })
 /******/ ]);
+//# sourceMappingURL=bundle.js.map

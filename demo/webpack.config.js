@@ -4,7 +4,8 @@ const path = require('path');
 module.exports = {
   entry: './app.js',
   target: 'web',
-
+  devtool: 'source-map',
+  
   output: {
     path: __dirname,
     filename: 'bundle.js',

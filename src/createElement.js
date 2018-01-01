@@ -1,11 +1,11 @@
-export default function createElement(type, config, ...args) {
+function createElement(type, config, ...children) {
   const props = Object.assign({}, config);
-  const children = args.length > 0 ? [].concat(...args) : [];
 
-  props.children =
-    children
-      .filter((child) => child)
-      .map((child) => child instanceof Object ? child : createElement('TEXT_ELEMENT', { nodeValue: child }));
-      
+  if (children.length > 0) {
+    props.children = [].concat(...children);
+  }
+
   return { type, props };
 }
+
+export default createElement;

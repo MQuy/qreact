@@ -1,21 +1,23 @@
-import { reconcile } from './render';
+import instantiateComponent from './instantiateComponent';
 
 class Component {
   constructor(props) {
     this.props = props;
-    this.state = this.state || {};
+    this.state = {};
   }
+  instantiate() {
+    const renderedElement = this.render();
+    const renderedComponent = instantiateComponent(renderedElement);
 
-  setState(partialState) {
-    this.state = Object.assign({}, this.state, partialState);
-    updateInstance(this.__internalInstance);
+    this._renderedComponent = renderedComponent;
+    renderedComponent.instantiate();
+  }
+  getInternalDom() {
+    return this._renderedComponent.getInternalDom();
+  }
+  setInternalElement(element) {
+    this._element = element;
   }
 }
 
-function updateInstance(internalInstance) {
-  const parentDom = internalInstance.dom.parentDom;
-  const element = internalInstance.element;
-
-  reconcile(parentDom, internalInstance, element);
-}
-export default Component
+export default Component;
