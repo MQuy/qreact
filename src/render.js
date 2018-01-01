@@ -1,7 +1,7 @@
 import DOM from './DOM';
 import instantiateComponent from './instantiateComponent';
 
-const DOM_KEY = 'QREACT';
+const DOM_KEY = '_qreact_';
 const reactInstances = {};
 let incrementId = 0;
 

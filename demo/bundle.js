@@ -213,7 +213,7 @@ Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["c" /* render */])(Object(__WEBPACK
 
 
 
-const DOM_KEY = 'QREACT';
+const DOM_KEY = '_qreact_';
 const reactInstances = {};
 let incrementId = 0;
 
