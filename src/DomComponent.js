@@ -9,14 +9,39 @@ class DomComponent {
   instantiate() {
     const { type, props } = this._element;
 
-    this._domNode = document.createElement(type);
+    if (type == 'TEXT_ELEMENT') {
+      this._domNode = document.createTextNode("");
+    } else {
+      this._domNode = document.createElement(type);
+    }
     this._updateDOMProperties({}, props);
     this._createInitialDOMChildren(props);
-
-    return this;
   }
-  getInternalDom() {
-    return this._domNode;
+  reconcile(nextElement) {
+    if (this._element.type == nextElement.type) {
+      this._updateDOMProperties(this._element.props, nextElement.props);
+      this._element = nextElement;
+      this._updateDOMChildren();
+    } else {
+      this._element = nextElement;
+      this.instantiate();
+    }
+  }
+  _updateDOMChildren() {
+    const { children } = this._element.props;
+
+    if (['string', 'number'].indexOf(typeof children) !== -1) {
+      this._domNode.textContent = children;
+    } else {
+      const count = Math.max(children.length, this._renderedChildren.length);
+
+      for(let i = 0 ; i < count ; ++i) {
+        const childElement = children[i];
+        const renderedComponent = this._renderedChildren[i];
+
+        renderedComponent.reconcile(childElement);
+      }
+    }
   }
   _createInitialDOMChildren(props) {
     const { children } = props;
@@ -62,6 +87,12 @@ class DomComponent {
         const eventType = name.toLowerCase().substring(2);
         this._domNode.addEventListener(eventType, nextProps[name]);
       });
+  }
+  getInternalElement() {
+    return this._element;
+  }
+  getInternalDom() {
+    return this._domNode;
   }
 }
 

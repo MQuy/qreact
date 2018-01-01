@@ -60,7 +60,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 1);
+/******/ 	return __webpack_require__(__webpack_require__.s = 2);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -68,7 +68,7 @@
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DomComponent__ = __webpack_require__(7);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DomComponent__ = __webpack_require__(5);
 
 
 function instantiateComponent(element) {
@@ -80,11 +80,6 @@ function instantiateComponent(element) {
   } else if (typeof type == 'function') {
     wrapperInstance = new type(props);
     wrapperInstance.setInternalElement = element;
-  } else {
-    wrapperInstance = new __WEBPACK_IMPORTED_MODULE_0__DomComponent__["a" /* default */]({
-      type: 'span',
-      props: { children: element }
-    });
   }
   return wrapperInstance;
 }
@@ -96,8 +91,42 @@ function instantiateComponent(element) {
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
+function empty(node) {
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+}
+
+function appendChild(dom, child) {
+  dom.appendChild(child);
+}
+
+function appendChildren(node, children) {
+  if (Array.isArray(children)) {
+    children.forEach(child => appendChild(node, child));
+  } else {
+    appendChild(node, children);
+  }
+}
+
+function replaceNode(node, newNode) {
+  node.parentNode.replaceNode(newNode);
+}
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  empty,
+  appendChild,
+  appendChildren,
+  replaceNode
+});
+
+/***/ }),
+/* 2 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__qreact__ = __webpack_require__(2);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__qreact__ = __webpack_require__(3);
 
 
 const stories = [{ name: "[Webpack] — Smart Loading Assets For Production", url: "https://hackernoon.com/webpack-smart-loading-assets-for-production-3571e0a29c2e" }, { name: "V8 Engine Overview", url: "https://medium.com/@MQuy90/v8-engine-overview-7c965731ced4" }];
@@ -158,13 +187,13 @@ class Story extends __WEBPACK_IMPORTED_MODULE_0__qreact__["a" /* Component */] {
 Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["c" /* render */])(Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["b" /* createElement */])(App, { stories: stories }), document.getElementById("root"));
 
 /***/ }),
-/* 2 */
+/* 3 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__src_render__ = __webpack_require__(3);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__src_createElement__ = __webpack_require__(5);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__src_Component__ = __webpack_require__(6);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__src_render__ = __webpack_require__(4);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__src_createElement__ = __webpack_require__(6);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__src_Component__ = __webpack_require__(7);
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return __WEBPACK_IMPORTED_MODULE_0__src_render__["a"]; });
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return __WEBPACK_IMPORTED_MODULE_1__src_createElement__["a"]; });
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return __WEBPACK_IMPORTED_MODULE_2__src_Component__["a"]; });
@@ -175,11 +204,11 @@ Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["c" /* render */])(Object(__WEBPACK
 
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DOM__ = __webpack_require__(4);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DOM__ = __webpack_require__(1);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__instantiateComponent__ = __webpack_require__(0);
 
 
@@ -189,7 +218,7 @@ const reactInstances = {};
 let incrementId = 0;
 
 function isRendered(node) {
-  return node.dataset[DOM_KEY];
+  return node[DOM_KEY];
 }
 
 function render(element, node) {
@@ -201,7 +230,7 @@ function render(element, node) {
 }
 
 function mount(element, node) {
-  node.dataset[DOM_KEY] = incrementId;
+  node[DOM_KEY] = incrementId;
 
   const component = Object(__WEBPACK_IMPORTED_MODULE_1__instantiateComponent__["a" /* default */])(element);
 
@@ -217,87 +246,11 @@ function mount(element, node) {
 /* harmony default export */ __webpack_exports__["a"] = (render);
 
 /***/ }),
-/* 4 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-function empty(node) {
-  while (node.firstChild) {
-    node.removeChild(node.firstChild);
-  }
-}
-
-function appendChild(dom, child) {
-  dom.appendChild(child);
-}
-
-function appendChildren(node, children) {
-  if (Array.isArray(children)) {
-    children.forEach(child => appendChild(node, child));
-  } else {
-    appendChild(node, children);
-  }
-}
-
-/* harmony default export */ __webpack_exports__["a"] = ({
-  empty,
-  appendChild,
-  appendChildren
-});
-
-/***/ }),
 /* 5 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-function createElement(type, config, ...children) {
-  const props = Object.assign({}, config);
-
-  if (children.length > 0) {
-    props.children = [].concat(...children);
-  }
-
-  return { type, props };
-}
-
-/* harmony default export */ __webpack_exports__["a"] = (createElement);
-
-/***/ }),
-/* 6 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__instantiateComponent__ = __webpack_require__(0);
-
-
-class Component {
-  constructor(props) {
-    this.props = props;
-    this.state = {};
-  }
-  instantiate() {
-    const renderedElement = this.render();
-    const renderedComponent = Object(__WEBPACK_IMPORTED_MODULE_0__instantiateComponent__["a" /* default */])(renderedElement);
-
-    this._renderedComponent = renderedComponent;
-    renderedComponent.instantiate();
-  }
-  getInternalDom() {
-    return this._renderedComponent.getInternalDom();
-  }
-  setInternalElement(element) {
-    this._element = element;
-  }
-}
-
-/* harmony default export */ __webpack_exports__["a"] = (Component);
-
-/***/ }),
-/* 7 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DOM__ = __webpack_require__(4);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DOM__ = __webpack_require__(1);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__instantiateComponent__ = __webpack_require__(0);
 
 
@@ -310,14 +263,39 @@ class DomComponent {
   instantiate() {
     const { type, props } = this._element;
 
-    this._domNode = document.createElement(type);
+    if (type == 'TEXT_ELEMENT') {
+      this._domNode = document.createTextNode("");
+    } else {
+      this._domNode = document.createElement(type);
+    }
     this._updateDOMProperties({}, props);
     this._createInitialDOMChildren(props);
-
-    return this;
   }
-  getInternalDom() {
-    return this._domNode;
+  reconcile(nextElement) {
+    if (this._element.type == nextElement.type) {
+      this._updateDOMProperties(this._element.props, nextElement.props);
+      this._element = nextElement;
+      this._updateDOMChildren();
+    } else {
+      this._element = nextElement;
+      this.instantiate();
+    }
+  }
+  _updateDOMChildren() {
+    const { children } = this._element.props;
+
+    if (['string', 'number'].indexOf(typeof children) !== -1) {
+      this._domNode.textContent = children;
+    } else {
+      const count = Math.max(children.length, this._renderedChildren.length);
+
+      for (let i = 0; i < count; ++i) {
+        const childElement = children[i];
+        const renderedComponent = this._renderedChildren[i];
+
+        renderedComponent.reconcile(childElement);
+      }
+    }
   }
   _createInitialDOMChildren(props) {
     const { children } = props;
@@ -355,9 +333,93 @@ class DomComponent {
       this._domNode.addEventListener(eventType, nextProps[name]);
     });
   }
+  getInternalElement() {
+    return this._element;
+  }
+  getInternalDom() {
+    return this._domNode;
+  }
 }
 
 /* harmony default export */ __webpack_exports__["a"] = (DomComponent);
+
+/***/ }),
+/* 6 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+function createElement(type, config, ...children) {
+  const props = Object.assign({}, config);
+
+  if (children.length > 0) {
+    props.children = [].concat(...children);
+  }
+
+  if (Array.isArray(props.children)) {
+    props.children = props.children.map(child => mapElement(child));
+  } else if (type != 'TEXT_ELEMENT') {
+    props.children = mapElement(props.children);
+  }
+
+  return { type, props };
+}
+
+function mapElement(child) {
+  return child instanceof Object ? child : createElement('TEXT_ELEMENT', { children: child });
+}
+
+/* harmony default export */ __webpack_exports__["a"] = (createElement);
+
+/***/ }),
+/* 7 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__instantiateComponent__ = __webpack_require__(0);
+
+
+class Component {
+  constructor(props) {
+    this.props = props;
+    this.state = {};
+  }
+  setState(partialState) {
+    Object.assign(this.state, partialState);
+    this.reconcile();
+  }
+  reconcile() {
+    const currentRenderedElement = this._renderedComponent.getInternalElement();
+    const nextRenderedElement = this.render();
+
+    if (currentRenderedElement.type == nextRenderedElement.type) {
+      this._renderedComponent.reconcile(nextRenderedElement);
+    } else {
+      const nextRenderedComponent = Object(__WEBPACK_IMPORTED_MODULE_0__instantiateComponent__["a" /* default */])(nextRenderedElement);
+
+      nextRenderedComponent.instantiate();
+      DOM.replaceNode(this._renderedComponent.getInternalDom(), nextRenderedComponent.getInternalDom());
+      this._renderedComponent = nextRenderedComponent;
+    }
+  }
+  instantiate() {
+    const renderedElement = this.render();
+    const renderedComponent = Object(__WEBPACK_IMPORTED_MODULE_0__instantiateComponent__["a" /* default */])(renderedElement);
+
+    this._renderedComponent = renderedComponent;
+    renderedComponent.instantiate();
+  }
+  getInternalDom() {
+    return this._renderedComponent.getInternalDom();
+  }
+  getInternalElement() {
+    return this._element;
+  }
+  setInternalElement(element) {
+    this._element = element;
+  }
+}
+
+/* harmony default export */ __webpack_exports__["a"] = (Component);
 
 /***/ })
 /******/ ]);

@@ -6,7 +6,7 @@ const reactInstances = {};
 let incrementId = 0;
 
 function isRendered(node) {
-  return node.dataset[DOM_KEY];
+  return node[DOM_KEY];
 }
 
 function render(element, node) {
@@ -18,7 +18,7 @@ function render(element, node) {
 }
 
 function mount(element, node) {
-  node.dataset[DOM_KEY] = incrementId;
+  node[DOM_KEY] = incrementId;
 
   const component = instantiateComponent(element);
   

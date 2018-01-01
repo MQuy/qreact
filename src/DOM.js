@@ -16,8 +16,13 @@ function appendChildren(node, children) {
   }
 }
 
+function replaceNode(node, newNode) {
+  node.parentNode.replaceNode(newNode);
+}
+
 export default {
   empty,
   appendChild,
   appendChildren,
+  replaceNode,
 }

@@ -9,11 +9,6 @@ function instantiateComponent(element) {
   } else if (typeof type == 'function') {
     wrapperInstance = new type(props);
     wrapperInstance.setInternalElement = element;
-  } else {
-    wrapperInstance = new DomComponent({
-      type: 'span',
-      props: { children: element }
-    })
   }
   return wrapperInstance;
 }
