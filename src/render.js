@@ -23,7 +23,7 @@ function mount(element, node) {
   const component = instantiateComponent(element);
   
   reactInstances[incrementId] = component;
-  component.instantiate();
+  component.mountComponent(element);
 
   DOM.empty(node);
   DOM.appendChild(node, component.getInternalDom());
@@ -33,8 +33,9 @@ function mount(element, node) {
 
 function update(element, node) {
   const componentId = node[DOM_KEY];
+  const component = reactInstances[componentId];
 
-  reactInstances[componentId].reconcile();
+  component.updateComponent(element);
 }
 
 export default render;

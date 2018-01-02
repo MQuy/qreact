@@ -1,4 +1,5 @@
 import DomComponent from './DomComponent';
+import CompositeComponent from './CompositeComponent';
 
 function instantiateComponent(element) {
   const { type, props } = element;
@@ -7,8 +8,7 @@ function instantiateComponent(element) {
   if (typeof type == 'string') {
     wrapperInstance = new DomComponent(element);
   } else if (typeof type == 'function') {
-    wrapperInstance = new type(props);
-    wrapperInstance.setInternalElement(element);
+    wrapperInstance = new CompositeComponent(element);
   }
   return wrapperInstance;
 }

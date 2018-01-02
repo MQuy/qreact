@@ -60,7 +60,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 2);
+/******/ 	return __webpack_require__(__webpack_require__.s = 3);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -68,7 +68,9 @@
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DomComponent__ = __webpack_require__(5);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DomComponent__ = __webpack_require__(6);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__CompositeComponent__ = __webpack_require__(7);
+
 
 
 function instantiateComponent(element) {
@@ -78,8 +80,7 @@ function instantiateComponent(element) {
   if (typeof type == 'string') {
     wrapperInstance = new __WEBPACK_IMPORTED_MODULE_0__DomComponent__["a" /* default */](element);
   } else if (typeof type == 'function') {
-    wrapperInstance = new type(props);
-    wrapperInstance.setInternalElement(element);
+    wrapperInstance = new __WEBPACK_IMPORTED_MODULE_1__CompositeComponent__["a" /* default */](element);
   }
   return wrapperInstance;
 }
@@ -130,8 +131,27 @@ function removeChild(node, child) {
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
+const ReactInstanceMap = {
+  remove(instance) {
+    instance._reactInternalInstance = undefined;
+  },
+  get(instance) {
+    return instance._reactInternalInstance;
+  },
+  set(instance, component) {
+    instance._reactInternalInstance = component;
+  }
+};
+
+/* harmony default export */ __webpack_exports__["a"] = (ReactInstanceMap);
+
+/***/ }),
+/* 3 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__qreact__ = __webpack_require__(3);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__qreact__ = __webpack_require__(4);
 
 
 class App extends __WEBPACK_IMPORTED_MODULE_0__qreact__["a" /* Component */] {
@@ -208,13 +228,13 @@ class Story extends __WEBPACK_IMPORTED_MODULE_0__qreact__["a" /* Component */] {
 Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["c" /* render */])(Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["b" /* createElement */])(App, null), document.getElementById("root"));
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__src_render__ = __webpack_require__(4);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__src_createElement__ = __webpack_require__(6);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__src_Component__ = __webpack_require__(7);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__src_render__ = __webpack_require__(5);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__src_createElement__ = __webpack_require__(8);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__src_Component__ = __webpack_require__(9);
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return __WEBPACK_IMPORTED_MODULE_0__src_render__["a"]; });
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return __WEBPACK_IMPORTED_MODULE_1__src_createElement__["a"]; });
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return __WEBPACK_IMPORTED_MODULE_2__src_Component__["a"]; });
@@ -225,7 +245,7 @@ Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["c" /* render */])(Object(__WEBPACK
 
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -256,7 +276,7 @@ function mount(element, node) {
   const component = Object(__WEBPACK_IMPORTED_MODULE_1__instantiateComponent__["a" /* default */])(element);
 
   reactInstances[incrementId] = component;
-  component.instantiate();
+  component.mountComponent(element);
 
   __WEBPACK_IMPORTED_MODULE_0__DOM__["a" /* default */].empty(node);
   __WEBPACK_IMPORTED_MODULE_0__DOM__["a" /* default */].appendChild(node, component.getInternalDom());
@@ -266,14 +286,15 @@ function mount(element, node) {
 
 function update(element, node) {
   const componentId = node[DOM_KEY];
+  const component = reactInstances[componentId];
 
-  reactInstances[componentId].reconcile();
+  component.updateComponent(element);
 }
 
 /* harmony default export */ __webpack_exports__["a"] = (render);
 
 /***/ }),
-/* 5 */
+/* 6 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -284,11 +305,11 @@ function update(element, node) {
 
 class DomComponent {
   constructor(element) {
-    this._element = element;
+    this._currentElement = element;
     this._domNode = null;
   }
-  instantiate() {
-    const { type, props } = this._element;
+  mountComponent() {
+    const { type, props } = this._currentElement;
 
     if (type == 'TEXT_ELEMENT') {
       this._domNode = document.createTextNode("");
@@ -298,18 +319,22 @@ class DomComponent {
     this._updateDOMProperties({}, props);
     this._createInitialDOMChildren(props);
   }
-  reconcile(nextElement) {
-    if (this._element.type == nextElement.type) {
-      this._updateDOMProperties(this._element.props, nextElement.props);
-      this._element = nextElement;
+  updateComponent(nextElement) {
+    if (this._currentElement.type == nextElement.type) {
+      this._updateDOMProperties(this._currentElement.props, nextElement.props);
+      this._currentElement = nextElement;
       this._updateDOMChildren();
     } else {
-      this._element = nextElement;
+      this._currentElement = nextElement;
       this.instantiate();
     }
   }
+  ummountComponent() {
+    this._currentElement = null;
+    this._domNode = null;
+  }
   _updateDOMChildren() {
-    const { children } = this._element.props;
+    const { children } = this._currentElement.props;
 
     if (['string', 'number'].indexOf(typeof children) !== -1) {
       this._domNode.textContent = children;
@@ -323,14 +348,15 @@ class DomComponent {
         if (!renderedComponent) {
           const component = Object(__WEBPACK_IMPORTED_MODULE_1__instantiateComponent__["a" /* default */])(childElement);
 
-          component.instantiate();
+          component.mountComponent(childElement);
           this._renderedChildren.push(component);
           __WEBPACK_IMPORTED_MODULE_0__DOM__["a" /* default */].appendChild(this._domNode, component.getInternalDom());
         } else if (!childElement) {
           this._renderedChildren[i] = null;
           __WEBPACK_IMPORTED_MODULE_0__DOM__["a" /* default */].removeChild(this._domNode, renderedComponent.getInternalDom());
+          renderedComponent.ummountComponent();
         } else {
-          renderedComponent.reconcile(childElement);
+          renderedComponent.updateComponent(childElement);
         }
       }
 
@@ -343,8 +369,12 @@ class DomComponent {
     if (['string', 'number'].indexOf(typeof children) !== -1) {
       this._domNode.textContent = children;
     } else {
-      this._renderedChildren = children.map(child => Object(__WEBPACK_IMPORTED_MODULE_1__instantiateComponent__["a" /* default */])(child));
-      this._renderedChildren.forEach(child => child.instantiate());
+      this._renderedChildren = children.map(childElement => {
+        const component = Object(__WEBPACK_IMPORTED_MODULE_1__instantiateComponent__["a" /* default */])(childElement);
+
+        component.mountComponent(childElement);
+        return component;
+      });
 
       const domChildren = this._renderedChildren.map(child => child.getInternalDom());
 
@@ -374,7 +404,7 @@ class DomComponent {
     });
   }
   getInternalElement() {
-    return this._element;
+    return this._currentElement;
   }
   getInternalDom() {
     return this._domNode;
@@ -384,7 +414,73 @@ class DomComponent {
 /* harmony default export */ __webpack_exports__["a"] = (DomComponent);
 
 /***/ }),
-/* 6 */
+/* 7 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__instantiateComponent__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__ReactInstanceMap__ = __webpack_require__(2);
+
+
+
+class CompositeComponent {
+  constructor(element) {
+    this._currentElement = element;
+    this._instance = null;
+    this._renderedComponent = null;
+  }
+  updateComponent(nextElement) {
+    if (this._currentElement.type != nextElement.type) {
+      this.mountComponent(nextElement);
+    } else {
+      this._currentElement = nextElement;
+      this._instance.props = nextElement.props;
+
+      const currentRenderedElement = this._renderedComponent.getInternalElement();
+      const nextRenderedElement = this._instance.render();
+
+      if (currentRenderedElement.type == nextRenderedElement.type) {
+        this._renderedComponent.updateComponent(nextRenderedElement);
+      } else {
+        const nextRenderedComponent = Object(__WEBPACK_IMPORTED_MODULE_0__instantiateComponent__["a" /* default */])(nextRenderedElement);
+
+        nextRenderedComponent.instantiate();
+        nextRenderedComponent.updateComponent(nextRenderedElement);
+        this._renderedComponent = nextRenderedComponent;
+      }
+    }
+  }
+  mountComponent(nextElement) {
+    const { type, props } = nextElement;
+
+    this._currentElement = nextElement;
+    this._instance = new type(props);
+
+    __WEBPACK_IMPORTED_MODULE_1__ReactInstanceMap__["a" /* default */].set(this._instance, this);
+
+    const renderedElement = this._instance.render();
+    const renderedComponent = Object(__WEBPACK_IMPORTED_MODULE_0__instantiateComponent__["a" /* default */])(renderedElement);
+
+    this._renderedComponent = renderedComponent;
+    renderedComponent.mountComponent(renderedElement);
+  }
+  ummountComponent() {
+    this._currentElement = null;
+    this._instance = null;
+    this._renderedComponent = null;
+  }
+  getInternalDom() {
+    return this._renderedComponent.getInternalDom();
+  }
+  getInternalElement() {
+    return this._currentElement;
+  }
+}
+
+/* harmony default export */ __webpack_exports__["a"] = (CompositeComponent);
+
+/***/ }),
+/* 8 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -411,55 +507,24 @@ function mapElement(child) {
 /* harmony default export */ __webpack_exports__["a"] = (createElement);
 
 /***/ }),
-/* 7 */
+/* 9 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__instantiateComponent__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__ReactInstanceMap__ = __webpack_require__(2);
 
 
 class Component {
   constructor(props) {
     this.props = props;
     this.state = {};
-    console.log(this);
   }
   setState(partialState) {
     Object.assign(this.state, partialState);
-    this.reconcile(this._element);
-  }
-  reconcile(nextElement) {
-    this._element = nextElement;
-    this.props = nextElement.props;
 
-    const currentRenderedElement = this._renderedComponent.getInternalElement();
-    const nextRenderedElement = this.render();
+    const component = __WEBPACK_IMPORTED_MODULE_0__ReactInstanceMap__["a" /* default */].get(this);
 
-    if (currentRenderedElement.type == nextRenderedElement.type) {
-      this._renderedComponent.reconcile(nextRenderedElement);
-    } else {
-      const nextRenderedComponent = Object(__WEBPACK_IMPORTED_MODULE_0__instantiateComponent__["a" /* default */])(nextRenderedElement);
-
-      nextRenderedComponent.instantiate();
-      DOM.replaceNode(this._renderedComponent.getInternalDom(), nextRenderedComponent.getInternalDom());
-      this._renderedComponent = nextRenderedComponent;
-    }
-  }
-  instantiate() {
-    const renderedElement = this.render();
-    const renderedComponent = Object(__WEBPACK_IMPORTED_MODULE_0__instantiateComponent__["a" /* default */])(renderedElement);
-
-    this._renderedComponent = renderedComponent;
-    renderedComponent.instantiate();
-  }
-  getInternalDom() {
-    return this._renderedComponent.getInternalDom();
-  }
-  getInternalElement() {
-    return this._element;
-  }
-  setInternalElement(element) {
-    this._element = element;
+    component.updateComponent(component.getInternalElement());
   }
 }
 

@@ -3,11 +3,11 @@ import instantiateComponent from './instantiateComponent';
 
 class DomComponent {
   constructor(element) {
-    this._element = element;
+    this._currentElement = element;
     this._domNode = null;
   }
-  instantiate() {
-    const { type, props } = this._element;
+  mountComponent() {
+    const { type, props } = this._currentElement;
 
     if (type == 'TEXT_ELEMENT') {
       this._domNode = document.createTextNode("");
@@ -17,18 +17,22 @@ class DomComponent {
     this._updateDOMProperties({}, props);
     this._createInitialDOMChildren(props);
   }
-  reconcile(nextElement) {
-    if (this._element.type == nextElement.type) {
-      this._updateDOMProperties(this._element.props, nextElement.props);
-      this._element = nextElement;
+  updateComponent(nextElement) {
+    if (this._currentElement.type == nextElement.type) {
+      this._updateDOMProperties(this._currentElement.props, nextElement.props);
+      this._currentElement = nextElement;
       this._updateDOMChildren();
     } else {
-      this._element = nextElement;
+      this._currentElement = nextElement;
       this.instantiate();
     }
   }
+  ummountComponent() {
+    this._currentElement = null;
+    this._domNode = null;
+  }
   _updateDOMChildren() {
-    const { children } = this._element.props;
+    const { children } = this._currentElement.props;
 
     if (['string', 'number'].indexOf(typeof children) !== -1) {
       this._domNode.textContent = children;
@@ -42,14 +46,15 @@ class DomComponent {
         if (!renderedComponent) {
           const component = instantiateComponent(childElement);
 
-          component.instantiate();
+          component.mountComponent(childElement);
           this._renderedChildren.push(component);
           DOM.appendChild(this._domNode, component.getInternalDom());
         } else if (!childElement) {
           this._renderedChildren[i] = null;
           DOM.removeChild(this._domNode, renderedComponent.getInternalDom());
+          renderedComponent.ummountComponent();
         } else {
-          renderedComponent.reconcile(childElement);
+          renderedComponent.updateComponent(childElement);
         }
       }
 
@@ -62,8 +67,12 @@ class DomComponent {
     if (['string', 'number'].indexOf(typeof children) !== -1) {
       this._domNode.textContent = children;
     } else {
-      this._renderedChildren = children.map((child) => instantiateComponent(child));
-      this._renderedChildren.forEach((child) => child.instantiate());
+      this._renderedChildren = children.map((childElement) => {
+        const component = instantiateComponent(childElement);
+
+        component.mountComponent(childElement);
+        return component;
+      });
 
       const domChildren = this._renderedChildren.map((child) => child.getInternalDom());
 
@@ -102,7 +111,7 @@ class DomComponent {
       });
   }
   getInternalElement() {
-    return this._element;
+    return this._currentElement;
   }
   getInternalDom() {
     return this._domNode;
