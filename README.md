@@ -7,6 +7,7 @@ The dead simple implementation of React for the learning purpose on how React wo
 - [x] render, Component, createElement
 - [x] Reconciliation
 - [ ] Batching
-- [ ] Better reconciliation
 - [ ] Global event handler
+- [ ] Context, Stateless component, Ref (should be easy)
+- [ ] Better reconciliation
 - [ ] Fiber
