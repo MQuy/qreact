@@ -94,13 +94,13 @@ class DomComponent {
     Object.keys(prevProps)
       .filter(isAttribute)
       .forEach(name => {
-        this._domNode[name] = null;
+        this._domNode.removeAttribute(name);
       });
 
     Object.keys(nextProps)
       .filter(isAttribute)
       .forEach(name => {
-        this._domNode[name] = nextProps[name];
+        this._domNode.setAttribute(name, nextProps[name]);
       });
 
     Object.keys(nextProps)
