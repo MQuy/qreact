@@ -1,11 +1,11 @@
 import instantiateComponent from './instantiateComponent';
-import ReactInstanceMap from './ReactInstanceMap';
 
 class CompositeComponent {
   constructor(element) {
     this._currentElement = element;
     this._instance = null;
     this._renderedComponent = null;
+    this._pendingStateQueue = []; 
   }
   updateComponent(nextElement) {
     if (this._currentElement.type != nextElement.type) {
@@ -13,8 +13,15 @@ class CompositeComponent {
     } else {
       this._currentElement = nextElement;
       this._instance.props = nextElement.props;
-
-      const currentRenderedElement = this._renderedComponent.getInternalElement();
+      this._instance.state =
+        this._pendingStateQueue
+          .reduce(
+            (acc, value) => Object.assign({}, acc, value),
+            this._instance.state
+          );
+      this._pendingStateQueue = [];
+      
+      const currentRenderedElement = this._renderedComponent._currentElement;
       const nextRenderedElement = this._instance.render();
 
       if (currentRenderedElement.type == nextRenderedElement.type) {
@@ -34,8 +41,7 @@ class CompositeComponent {
 
     this._currentElement = nextElement;
     this._instance = new type(props);
-
-    ReactInstanceMap.set(this._instance, this);
+    this._instance._reactInternalInstance = this;
 
     const renderedElement = this._instance.render();
     const renderedComponent = instantiateComponent(renderedElement);
@@ -50,9 +56,6 @@ class CompositeComponent {
   }
   getInternalDom() {
     return this._renderedComponent.getInternalDom();
-  }
-  getInternalElement() {
-    return this._currentElement;
   }
 }
 

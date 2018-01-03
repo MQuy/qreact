@@ -1,10 +1,14 @@
 import DOM from './DOM';
 import instantiateComponent from './instantiateComponent';
+import ReactEventEmitter from './ReactEventEmitter';
+
+let globalIdCounter = 0;
 
 class DomComponent {
   constructor(element) {
     this._currentElement = element;
     this._domNode = null;
+    this._rootNodeID = 0;
   }
   mountComponent() {
     const { type, props } = this._currentElement;
@@ -14,6 +18,8 @@ class DomComponent {
     } else {
       this._domNode = document.createElement(type);
     }
+    this._rootNodeID = globalIdCounter++;
+    this._domNode.__reactInternalInstance = this;
     this._updateDOMProperties({}, props);
     this._createInitialDOMChildren(props);
   }
@@ -87,8 +93,7 @@ class DomComponent {
     Object.keys(prevProps)
     .filter(isEvent)
     .forEach(name => {
-      const eventType = name.toLowerCase().substring(2);
-      this._domNode.removeEventListener(eventType, prevProps[name]);
+      ReactEventEmitter.removeQueue(this._rootNodeID, name);
     });
 
     Object.keys(prevProps)
@@ -106,16 +111,14 @@ class DomComponent {
     Object.keys(nextProps)
       .filter(isEvent)
       .forEach(name => {
-        const eventType = name.toLowerCase().substring(2);
-        this._domNode.addEventListener(eventType, nextProps[name]);
+        ReactEventEmitter.addQueue(this._rootNodeID, name, nextProps[name]);
+        ReactEventEmitter.listenTo(name);
       });
-  }
-  getInternalElement() {
-    return this._currentElement;
   }
   getInternalDom() {
     return this._domNode;
   }
 }
+
 
 export default DomComponent;

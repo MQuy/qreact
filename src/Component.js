@@ -1,4 +1,4 @@
-import ReactInstanceMap from './ReactInstanceMap';
+import ReactUpdates from './ReactUpdates';
 
 class Component {
   constructor(props) {
@@ -6,11 +6,7 @@ class Component {
     this.state = {};
   }
   setState(partialState) {
-    Object.assign(this.state, partialState);
-
-    const component = ReactInstanceMap.get(this);
-    
-    component.updateComponent(component.getInternalElement());
+    ReactUpdates.enqueueUpdate(this, partialState);
   }
 }
 

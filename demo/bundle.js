@@ -69,7 +69,7 @@
 
 "use strict";
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DomComponent__ = __webpack_require__(6);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__CompositeComponent__ = __webpack_require__(7);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__CompositeComponent__ = __webpack_require__(8);
 
 
 
@@ -131,19 +131,25 @@ function removeChild(node, child) {
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-const ReactInstanceMap = {
-  remove(instance) {
-    instance._reactInternalInstance = undefined;
-  },
-  get(instance) {
-    return instance._reactInternalInstance;
-  },
-  set(instance, component) {
-    instance._reactInternalInstance = component;
-  }
-};
+const dirtyComponents = [];
 
-/* harmony default export */ __webpack_exports__["a"] = (ReactInstanceMap);
+function enqueueUpdate(instance, partialState) {
+  const component = instance._reactInternalInstance;
+
+  component._pendingStateQueue.push(partialState);
+  dirtyComponents.push(component);
+}
+
+function flushUpdates() {
+  dirtyComponents.forEach(component => {
+    component.updateComponent(component._currentElement);
+  });
+}
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  enqueueUpdate,
+  flushUpdates
+});
 
 /***/ }),
 /* 3 */
@@ -233,8 +239,8 @@ Object(__WEBPACK_IMPORTED_MODULE_0__qreact__["c" /* render */])(Object(__WEBPACK
 
 "use strict";
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__src_render__ = __webpack_require__(5);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__src_createElement__ = __webpack_require__(8);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__src_Component__ = __webpack_require__(9);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__src_createElement__ = __webpack_require__(9);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__src_Component__ = __webpack_require__(10);
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return __WEBPACK_IMPORTED_MODULE_0__src_render__["a"]; });
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return __WEBPACK_IMPORTED_MODULE_1__src_createElement__["a"]; });
 /* harmony reexport (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return __WEBPACK_IMPORTED_MODULE_2__src_Component__["a"]; });
@@ -300,13 +306,18 @@ function update(element, node) {
 "use strict";
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__DOM__ = __webpack_require__(1);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__instantiateComponent__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__ReactEventEmitter__ = __webpack_require__(7);
 
 
+
+
+let globalIdCounter = 0;
 
 class DomComponent {
   constructor(element) {
     this._currentElement = element;
     this._domNode = null;
+    this._rootNodeID = 0;
   }
   mountComponent() {
     const { type, props } = this._currentElement;
@@ -316,6 +327,8 @@ class DomComponent {
     } else {
       this._domNode = document.createElement(type);
     }
+    this._rootNodeID = globalIdCounter++;
+    this._domNode.__reactInternalInstance = this;
     this._updateDOMProperties({}, props);
     this._createInitialDOMChildren(props);
   }
@@ -386,25 +399,21 @@ class DomComponent {
     const isAttribute = name => !isEvent(name) && name != "children" && name != "style";
 
     Object.keys(prevProps).filter(isEvent).forEach(name => {
-      const eventType = name.toLowerCase().substring(2);
-      this._domNode.removeEventListener(eventType, prevProps[name]);
+      __WEBPACK_IMPORTED_MODULE_2__ReactEventEmitter__["a" /* default */].removeQueue(this._rootNodeID, name);
     });
 
     Object.keys(prevProps).filter(isAttribute).forEach(name => {
-      this._domNode[name] = null;
+      this._domNode.removeAttribute(name);
     });
 
     Object.keys(nextProps).filter(isAttribute).forEach(name => {
-      this._domNode[name] = nextProps[name];
+      this._domNode.setAttribute(name, nextProps[name]);
     });
 
     Object.keys(nextProps).filter(isEvent).forEach(name => {
-      const eventType = name.toLowerCase().substring(2);
-      this._domNode.addEventListener(eventType, nextProps[name]);
+      __WEBPACK_IMPORTED_MODULE_2__ReactEventEmitter__["a" /* default */].addQueue(this._rootNodeID, name, nextProps[name]);
+      __WEBPACK_IMPORTED_MODULE_2__ReactEventEmitter__["a" /* default */].listenTo(name);
     });
-  }
-  getInternalElement() {
-    return this._currentElement;
   }
   getInternalDom() {
     return this._domNode;
@@ -418,9 +427,60 @@ class DomComponent {
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__instantiateComponent__ = __webpack_require__(0);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__ReactInstanceMap__ = __webpack_require__(2);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__ReactUpdates__ = __webpack_require__(2);
 
+
+const alreadyListened = {};
+const queueListeners = {};
+
+function addQueue(nodeId, name, value) {
+  if (!queueListeners[nodeId]) {
+    queueListeners[nodeId] = {};
+  }
+  queueListeners[nodeId][name] = value;
+}
+
+function removeQueue(nodeId, name, value) {
+  delete queueListeners[nodeId][name];
+}
+
+function getQueue(nodeId, name) {
+  return queueListeners[nodeId][name];
+}
+
+function listenTo(name) {
+  const eventName = name.substr(2).toLocaleLowerCase();
+
+  if (alreadyListened[eventName]) {
+    return;
+  }
+  alreadyListened[eventName] = true;
+
+  document.addEventListener(name.substr(2).toLocaleLowerCase(), dispatchEvent.bind(this, name));
+}
+
+function dispatchEvent(name, e) {
+  const domNode = e.target;
+  const reactInstance = domNode.__reactInternalInstance;
+
+  getQueue(reactInstance._rootNodeID, name)(e);
+  __WEBPACK_IMPORTED_MODULE_0__ReactUpdates__["a" /* default */].flushUpdates();
+}
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  addQueue,
+  removeQueue,
+  getQueue,
+  listenTo,
+  dispatchEvent
+});
+
+/***/ }),
+/* 8 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__instantiateComponent__ = __webpack_require__(0);
 
 
 class CompositeComponent {
@@ -428,6 +488,7 @@ class CompositeComponent {
     this._currentElement = element;
     this._instance = null;
     this._renderedComponent = null;
+    this._pendingStateQueue = [];
   }
   updateComponent(nextElement) {
     if (this._currentElement.type != nextElement.type) {
@@ -435,8 +496,10 @@ class CompositeComponent {
     } else {
       this._currentElement = nextElement;
       this._instance.props = nextElement.props;
+      this._instance.state = this._pendingStateQueue.reduce((acc, value) => Object.assign({}, acc, value), this._instance.state);
+      this._pendingStateQueue = [];
 
-      const currentRenderedElement = this._renderedComponent.getInternalElement();
+      const currentRenderedElement = this._renderedComponent._currentElement;
       const nextRenderedElement = this._instance.render();
 
       if (currentRenderedElement.type == nextRenderedElement.type) {
@@ -455,8 +518,7 @@ class CompositeComponent {
 
     this._currentElement = nextElement;
     this._instance = new type(props);
-
-    __WEBPACK_IMPORTED_MODULE_1__ReactInstanceMap__["a" /* default */].set(this._instance, this);
+    this._instance._reactInternalInstance = this;
 
     const renderedElement = this._instance.render();
     const renderedComponent = Object(__WEBPACK_IMPORTED_MODULE_0__instantiateComponent__["a" /* default */])(renderedElement);
@@ -472,15 +534,12 @@ class CompositeComponent {
   getInternalDom() {
     return this._renderedComponent.getInternalDom();
   }
-  getInternalElement() {
-    return this._currentElement;
-  }
 }
 
 /* harmony default export */ __webpack_exports__["a"] = (CompositeComponent);
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -507,11 +566,11 @@ function mapElement(child) {
 /* harmony default export */ __webpack_exports__["a"] = (createElement);
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__ReactInstanceMap__ = __webpack_require__(2);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__ReactUpdates__ = __webpack_require__(2);
 
 
 class Component {
@@ -520,11 +579,7 @@ class Component {
     this.state = {};
   }
   setState(partialState) {
-    Object.assign(this.state, partialState);
-
-    const component = __WEBPACK_IMPORTED_MODULE_0__ReactInstanceMap__["a" /* default */].get(this);
-
-    component.updateComponent(component.getInternalElement());
+    __WEBPACK_IMPORTED_MODULE_0__ReactUpdates__["a" /* default */].enqueueUpdate(this, partialState);
   }
 }
 
