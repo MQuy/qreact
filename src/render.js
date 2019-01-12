@@ -1,12 +1,10 @@
-import DOM from './DOM';
-import instantiateComponent from './instantiateComponent';
+import DOM from "./DOM";
+import instantiateComponent from "./instantiateComponent";
 
-const DOM_KEY = '_qreact_';
-const reactInstances = {};
-let incrementId = 0;
+const internalInstanceKey = "_qreact_";
 
 function isRendered(node) {
-  return node[DOM_KEY];
+  return node[internalInstanceKey];
 }
 
 function render(element, node) {
@@ -18,22 +16,17 @@ function render(element, node) {
 }
 
 function mount(element, node) {
-  node[DOM_KEY] = incrementId;
-
   const component = instantiateComponent(element);
-  
-  reactInstances[incrementId] = component;
+
+  node[internalInstanceKey] = component;
   component.mountComponent(element);
 
   DOM.empty(node);
   DOM.appendChild(node, component.getInternalDom());
-
-  incrementId++;
 }
 
 function update(element, node) {
-  const componentId = node[DOM_KEY];
-  const component = reactInstances[componentId];
+  const component = node[internalInstanceKey];
 
   component.updateComponent(element);
 }

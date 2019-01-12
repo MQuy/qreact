@@ -6,8 +6,8 @@ function createElement(type, config, ...children) {
   }
 
   if (Array.isArray(props.children)) {
-    props.children = props.children.map((child) => mapElement(child));
-  } else if (type != 'TEXT_ELEMENT' && props.children) {
+    props.children = props.children.map(child => mapElement(child));
+  } else if (type != "TEXT_ELEMENT" && props.children) {
     props.children = mapElement(props.children);
   }
 
@@ -15,7 +15,7 @@ function createElement(type, config, ...children) {
 }
 
 function mapElement(child) {
-  return child instanceof Object ? child : createElement('TEXT_ELEMENT', { children: child });
+  return child instanceof Object ? child : createElement("TEXT_ELEMENT", { children: child });
 }
 
 export default createElement;

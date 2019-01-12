@@ -29,5 +29,5 @@ export default {
   appendChild,
   appendChildren,
   replaceNode,
-  removeChild,
-}
+  removeChild
+};

@@ -1,36 +1,32 @@
-const webpack = require('webpack');
-const path = require('path');
-
 module.exports = {
-  entry: './app.js',
-  target: 'web',
-  devtool: 'source-map',
-  
+  entry: "./app.js",
+  target: "web",
+  devtool: "source-map",
+
+  mode: "development",
+
   output: {
     path: __dirname,
-    filename: 'bundle.js',
+    filename: "bundle.js"
   },
   module: {
     rules: [
       {
         test: /\.js|jsx$/,
-        loader: 'babel-loader',
+        loader: "babel-loader",
         query: {
           babelrc: false,
           presets: [
-            'stage-2'
-          ],
-          plugins: [
             [
-              'transform-react-jsx',
+              "@babel/preset-react",
               {
-                pragma: 'createElement'
+                pragma: "createElement"
               }
-            ],
-            'transform-class-properties'
-          ]
+            ]
+          ],
+          plugins: ["@babel/plugin-proposal-class-properties"]
         }
       }
     ]
   }
-}
+};

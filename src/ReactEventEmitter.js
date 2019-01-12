@@ -1,11 +1,11 @@
-import ReactUpdates from './ReactUpdates';
+import ReactUpdates from "./ReactUpdates";
 
 const alreadyListened = {};
 const queueListeners = {};
 
 function addQueue(nodeId, name, value) {
   if (!queueListeners[nodeId]) {
-    queueListeners[nodeId] = {}
+    queueListeners[nodeId] = {};
   }
   queueListeners[nodeId][name] = value;
 }
@@ -20,7 +20,7 @@ function getQueue(nodeId, name) {
 
 function listenTo(name) {
   const eventName = name.substr(2).toLocaleLowerCase();
-  
+
   if (alreadyListened[eventName]) {
     return;
   }
@@ -32,7 +32,7 @@ function listenTo(name) {
 function dispatchEvent(name, e) {
   const domNode = e.target;
   const reactInstance = domNode.__reactInternalInstance;
-  
+
   getQueue(reactInstance._rootNodeID, name)(e);
   ReactUpdates.flushUpdates();
 }
@@ -42,5 +42,5 @@ export default {
   removeQueue,
   getQueue,
   listenTo,
-  dispatchEvent,
-}
+  dispatchEvent
+};
