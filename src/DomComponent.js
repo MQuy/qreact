@@ -1,129 +1,93 @@
-import DOM from "./DOM";
-import instantiateComponent from "./instantiateComponent";
-import ReactEventEmitter from "./ReactEventEmitter";
+import { listenTo, registrationNameDependencies } from "./EventEmitter";
+import { setTextContent } from "./DOMFiberEntry";
 
-let globalIdCounter = 0;
+const internalInstanceKey = "__reactInternalInstance";
+const internalEventHandlersKey = "__reactEventHandlers";
 
-class DomComponent {
-  constructor(element) {
-    this._currentElement = element;
-    this._domNode = null;
-    this._rootNodeID = 0;
+export function setInitialProperties(domElement, tag, props) {
+  switch (tag) {
+    case "input":
+    case "option":
+    case "select":
+    case "textarea":
+      listenTo("onChange");
   }
+  setInitialDOMProperties(domElement, props);
+}
 
-  mountComponent() {
-    const { type, props } = this._currentElement;
-
-    if (type == "TEXT_ELEMENT") {
-      this._domNode = document.createTextNode("");
-    } else {
-      this._domNode = document.createElement(type);
-    }
-    this._rootNodeID = globalIdCounter++;
-    this._domNode.__reactInternalInstance = this;
-    this._updateDOMProperties({}, props);
-    this._createInitialDOMChildren(props);
-  }
-
-  updateComponent(nextElement) {
-    if (this._currentElement.type == nextElement.type) {
-      this._updateDOMProperties(this._currentElement.props, nextElement.props);
-      this._currentElement = nextElement;
-      this._updateDOMChildren();
-    } else {
-      this._currentElement = nextElement;
-      this.instantiate();
-    }
-  }
-
-  ummountComponent() {
-    this._currentElement = null;
-    this._domNode = null;
-  }
-
-  _updateDOMChildren() {
-    const { children } = this._currentElement.props;
-
-    if (["string", "number"].indexOf(typeof children) !== -1) {
-      this._domNode.textContent = children;
-    } else {
-      const count = Math.max(children.length, this._renderedChildren.length);
-
-      for (let i = 0; i < count; ++i) {
-        const childElement = children[i];
-        const renderedComponent = this._renderedChildren[i];
-
-        if (!renderedComponent) {
-          const component = instantiateComponent(childElement);
-
-          component.mountComponent(childElement);
-          this._renderedChildren.push(component);
-          DOM.appendChild(this._domNode, component.getInternalDom());
-        } else if (!childElement) {
-          this._renderedChildren[i] = null;
-          DOM.removeChild(this._domNode, renderedComponent.getInternalDom());
-          renderedComponent.ummountComponent();
-        } else {
-          renderedComponent.updateComponent(childElement);
-        }
+function setInitialDOMProperties(domElement, nextProps) {
+  for (let propKey in nextProps) {
+    const nextProp = nextProps[propKey];
+    if (propKey === "children") {
+      if (["string", "number"].includes(typeof nextProp)) {
+        setTextContent(domElement, nextProp);
       }
-
-      this._renderedChildren = this._renderedChildren.filter(child => child);
-    }
-  }
-
-  _createInitialDOMChildren(props) {
-    const { children } = props;
-
-    if (["string", "number"].indexOf(typeof children) !== -1) {
-      this._domNode.textContent = children;
+    } else if (registrationNameDependencies.hasOwnProperty(propKey) && nextProp != null) {
+      listenTo(propKey);
     } else {
-      this._renderedChildren = children.map(childElement => {
-        const component = instantiateComponent(childElement);
-
-        component.mountComponent(childElement);
-        return component;
-      });
-
-      const domChildren = this._renderedChildren.map(child => child.getInternalDom());
-
-      DOM.appendChildren(this._domNode, domChildren);
+      domElement.setAttribute(propKey, nextProp);
     }
-  }
-
-  _updateDOMProperties(prevProps, nextProps) {
-    const isEvent = name => name.startsWith("on");
-    const isAttribute = name => !isEvent(name) && name != "children" && name != "style";
-
-    Object.keys(prevProps)
-      .filter(isEvent)
-      .forEach(name => {
-        ReactEventEmitter.removeQueue(this._rootNodeID, name);
-      });
-
-    Object.keys(prevProps)
-      .filter(isAttribute)
-      .forEach(name => {
-        this._domNode.removeAttribute(name);
-      });
-
-    Object.keys(nextProps)
-      .filter(isAttribute)
-      .forEach(name => {
-        this._domNode.setAttribute(name, nextProps[name]);
-      });
-
-    Object.keys(nextProps)
-      .filter(isEvent)
-      .forEach(name => {
-        ReactEventEmitter.addQueue(this._rootNodeID, name, nextProps[name]);
-        ReactEventEmitter.listenTo(name);
-      });
-  }
-
-  getInternalDom() {
-    return this._domNode;
   }
 }
 
-export default DomComponent;
+export function updateDOMProperties(domElement, updatePayload) {
+  for (let i = 0; i < updatePayload.length; i += 2) {
+    let propKey = updatePayload[i];
+    let propValue = updatePayload[i + 1];
+    if (propKey === "children") {
+      setTextContent(domElement, propValue);
+    } else if (propValue != null) {
+      domElement.setAttribute(propKey, propValue);
+    } else {
+      domElement.removeAttribute(propKey);
+    }
+  }
+}
+export function diffProperties(lastRawProps, nextRawProps) {
+  let updatePayload = null;
+  let lastProps = lastRawProps;
+  let nextProps = nextRawProps;
+  for (let propKey in lastProps) {
+    if (nextProps.hasOwnProperty(propKey) || !lastProps.hasOwnProperty(propKey) || lastProps[propKey] == null) {
+      continue;
+    }
+    if (!registrationNameDependencies.hasOwnProperty(propKey)) {
+      (updatePayload = updatePayload || []).push(propKey, null);
+    }
+  }
+  for (let propKey in nextProps) {
+    let nextProp = nextProps[propKey];
+    let lastProp = lastProps != null ? lastProps[propKey] : undefined;
+    if (!nextProps.hasOwnProperty(propKey) || nextProp === lastProp || (nextProp == null && lastProp == null)) {
+      continue;
+    }
+    if (propKey === "children") {
+      if (lastProp !== nextProp && (typeof nextProp === "string" || typeof nextProp === "number")) {
+        (updatePayload = updatePayload || []).push(propKey, "" + nextProp);
+      }
+    } else if (registrationNameDependencies.hasOwnProperty(propKey)) {
+      if (nextProp != null) {
+        listenTo(propKey);
+      }
+    } else {
+      (updatePayload = updatePayload || []).push(propKey, nextProp);
+    }
+  }
+  return updatePayload;
+}
+
+export function getClosestInstanceFromNode(node) {
+  return node[internalInstanceKey];
+}
+
+export function getFiberCurrentPropsFromNode(node) {
+  return node[internalEventHandlersKey];
+}
+
+export function updateFiberProps(node, props) {
+  node[internalEventHandlersKey] = props;
+}
+
+export function precacheFiberNode(inst, node) {
+  node[internalInstanceKey] = inst;
+}

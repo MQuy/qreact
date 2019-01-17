@@ -1,21 +1,34 @@
-function createElement(type, config, ...children) {
-  const props = Object.assign({}, config);
+export const REACT_ELEMENT_TYPE = Symbol.for("react.element");
 
-  if (children.length > 0) {
-    props.children = [].concat(...children);
+export function createElement(type, config, children) {
+  let propName;
+  const props = {};
+  let key;
+
+  if (config != null) {
+    if (config.key) {
+      key = config.key;
+    }
+    for (propName in config) {
+      props[propName] = config[propName];
+    }
   }
 
-  if (Array.isArray(props.children)) {
-    props.children = props.children.map(child => mapElement(child));
-  } else if (type != "TEXT_ELEMENT" && props.children) {
-    props.children = mapElement(props.children);
+  const childrenLength = arguments.length - 2;
+  if (childrenLength === 1) {
+    props.children = children;
+  } else if (childrenLength > 1) {
+    const childArray = Array(childrenLength);
+    for (let i = 0; i < childrenLength; i++) {
+      childArray[i] = arguments[i + 2];
+    }
+    props.children = childArray;
   }
 
-  return { type, props };
+  return {
+    $$typeof: REACT_ELEMENT_TYPE,
+    type,
+    key,
+    props
+  };
 }
-
-function mapElement(child) {
-  return child instanceof Object ? child : createElement("TEXT_ELEMENT", { children: child });
-}
-
-export default createElement;

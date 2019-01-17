@@ -1,0 +1,10 @@
+export const NoEffect = 0;
+export const PerformedWork = 1;
+export const Placement = 2;
+export const Update = 4;
+export const PlacementAndUpdate = 6;
+export const Deletion = 8;
+export const ContentReset = 16;
+export const Callback = 32;
+export const Err = 64;
+export const Ref = 128; //              0b10000000

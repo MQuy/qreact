@@ -1,51 +1,55 @@
-import { render, createElement, Component } from '../qreact';
+import * as React from "../qreact";
 
-class App extends Component {
+class App extends React.Component {
   constructor(props) {
     super(props);
 
     this.state = {
       stories: [
-        { id: 1, name: "[Webpack] — Smart Loading Assets For Production", url: "https://hackernoon.com/webpack-smart-loading-assets-for-production-3571e0a29c2e" },
-        { id: 2, name: "V8 Engine Overview", url: "https://medium.com/@MQuy90/v8-engine-overview-7c965731ced4" },
+        {
+          id: 1,
+          name: "[Webpack] — Smart Loading Assets For Production",
+          url: "https://hackernoon.com/webpack-smart-loading-assets-for-production-3571e0a29c2e"
+        },
+        { id: 2, name: "V8 Engine Overview", url: "https://medium.com/@MQuy90/v8-engine-overview-7c965731ced4" }
       ]
-    }
+    };
   }
+
   render() {
     const { stories } = this.state;
 
     return (
       <div>
         <ul>
-          {
-            stories.map((story) => (
-              <Story story={story} onRemove={this.removeStory}/>
-            ))
-          }
+          {stories.map(story => (
+            <Story story={story} key={story.id} onRemove={this.removeStory} />
+          ))}
         </ul>
       </div>
     );
   }
-  removeStory = (story) => () => {
+
+  removeStory = story => () => {
     const { stories } = this.state;
 
-    const index = stories.findIndex((s) => s.id == story.id);
+    const index = stories.findIndex(s => s.id == story.id);
     stories.splice(index, 1);
 
     this.setState(stories);
-  }
+  };
 }
 
-class Story extends Component {
+class Story extends React.Component {
   constructor(props) {
     super(props);
-    
+
     this.state = { likes: Math.ceil(Math.random() * 100) };
   }
   render() {
     const { story, onRemove } = this.props;
     const { likes } = this.state;
-    
+
     return (
       <li>
         <button onClick={this.handleClick}>{likes}❤️</button>
@@ -54,11 +58,12 @@ class Story extends Component {
       </li>
     );
   }
+
   handleClick = () => {
     this.setState({
       likes: this.state.likes + 1
-    })
-  }
+    });
+  };
 }
 
-render(<App />, document.getElementById("root"));
+React.render(<App />, document.getElementById("root"));

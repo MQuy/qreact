@@ -1,3 +1,6 @@
+const path = require("path");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+
 module.exports = {
   entry: "./app.js",
   target: "web",
@@ -6,9 +9,14 @@ module.exports = {
   mode: "development",
 
   output: {
-    path: __dirname,
+    path: path.resolve(__dirname, "dist"),
     filename: "bundle.js"
   },
+
+  devServer: {
+    contentBase: "./dist"
+  },
+
   module: {
     rules: [
       {
@@ -16,17 +24,17 @@ module.exports = {
         loader: "babel-loader",
         query: {
           babelrc: false,
-          presets: [
-            [
-              "@babel/preset-react",
-              {
-                pragma: "createElement"
-              }
-            ]
-          ],
-          plugins: ["@babel/plugin-proposal-class-properties"]
+          presets: [["@babel/preset-react"]],
+          plugins: ["@babel/plugin-proposal-class-properties", "@babel/plugin-proposal-object-rest-spread"]
         }
       }
     ]
-  }
+  },
+
+  plugins: [
+    new HtmlWebpackPlugin({
+      title: "qReact",
+      template: "index.html"
+    })
+  ]
 };
