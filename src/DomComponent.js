@@ -69,6 +69,9 @@ export function diffProperties(lastRawProps, nextRawProps) {
       if (nextProp != null) {
         listenTo(propKey);
       }
+      if (!updatePayload && lastProp !== nextProp) {
+        updatePayload = [];
+      }
     } else {
       (updatePayload = updatePayload || []).push(propKey, nextProp);
     }

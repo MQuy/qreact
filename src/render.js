@@ -4,8 +4,11 @@ import { scheduleUpdate, performWork } from "./FiberScheduler";
 import { FiberNode } from "./Fiber";
 
 export function render(element, container) {
-  let root = createFiberRoot(container);
-  container._reactRootContainer = container;
+  let root = container._reactRootContainer;
+  if (!root) {
+    root = createFiberRoot(container);
+    container._reactRootContainer = root;
+  }
   updateContainer(element, root);
 }
 

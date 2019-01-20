@@ -4,6 +4,98 @@ import { HostText } from "./TypeOfWork";
 import { REACT_ELEMENT_TYPE } from "./createElement";
 
 function ChildReconciler(shouldClone, shouldTrackSideEffects) {
+  // For array child reconcilation
+  function updateSlot(returnFiber, oldFiber, newChild) {
+    const key = oldFiber != null ? oldFiber.key : null;
+
+    if (typeof newChild === "string" || typeof newChild === "number") {
+      if (key != null) {
+        return null;
+      }
+      return updateTextNode(returnFiber, oldFiber, "" + newChild);
+    }
+
+    if (typeof newChild === "object" && newChild != null) {
+      switch (newChild.$$typeof) {
+        case REACT_ELEMENT_TYPE: {
+          if (newChild.key === key) {
+            return updateElement(returnFiber, oldFiber, newChild);
+          } else {
+            return null;
+          }
+        }
+      }
+    }
+  }
+
+  // For array child reconcilation
+  function updateFromMap(existingChildren, returnFiber, newIdx, newChild) {
+    if (typeof newChild === "string" || typeof newChild === "number") {
+      const matchedFiber = existingChildren.get(newIdx) || null;
+      return updateTextNode(returnFiber, matchedFiber, "" + newChild);
+    }
+
+    if (typeof newChild === "object" && newChild != null) {
+      switch (newChild.$$typeof) {
+        case REACT_ELEMENT_TYPE: {
+          const matchedFiber = existingChildren.get(newChild.key == null ? newIdx : newChild.key) || null;
+          return updateElement(returnFiber, matchedFiber, newChild);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  // For array child reconcilation
+  function updateTextNode(returnFiber, current, textContent) {
+    if (current == null || current.tag !== HostText) {
+      // Insert
+      const created = createFiberFromText(textContent);
+      created.return = returnFiber;
+      return created;
+    } else {
+      // Update
+      const existing = useFiber(current);
+      existing.pendingProps = textContent;
+      existing.return = returnFiber;
+      return existing;
+    }
+  }
+
+  // For array child reconcilation
+  function updateElement(returnFiber, current, element) {
+    if (current == null || current.type !== element.type) {
+      // Insert
+      const created = createFiberFromElement(element);
+      created.ref = coerceRef(current, element);
+      created.return = returnFiber;
+      return created;
+    } else {
+      // Move based on index
+      const existing = useFiber(current);
+      existing.pendingProps = element.props;
+      existing.return = returnFiber;
+      return existing;
+    }
+  }
+
+  // For array child reconcilation
+  function mapRemainingChildren(returnFiber, currentFirstChild) {
+    const existingChildren = new Map();
+
+    let existingChild = currentFirstChild;
+    while (existingChild != null) {
+      if (existingChild.key != null) {
+        existingChildren.set(existingChild.key, existingChild);
+      } else {
+        existingChildren.set(existingChild.index, existingChild);
+      }
+      existingChild = existingChild.sibling;
+    }
+    return existingChildren;
+  }
+
   function deleteChild(returnFiber, childToDelete) {
     if (!shouldTrackSideEffects) {
       return;
@@ -25,11 +117,27 @@ function ChildReconciler(shouldClone, shouldTrackSideEffects) {
     childToDelete.effectTag = Deletion;
   }
 
-  function placeChild(newFiber) {
+  function placeChild(newFiber, lastPlacedIndex, newIndex) {
+    newFiber.index = newIndex;
     if (!shouldTrackSideEffects) {
       return;
     }
-    newFiber.effectTag = Placement;
+    const current = newFiber.alternate;
+    if (current !== null) {
+      const oldIndex = current.index;
+      if (oldIndex < lastPlacedIndex) {
+        // This is a move.
+        newFiber.effectTag = Placement;
+        return lastPlacedIndex;
+      } else {
+        // This item can stay in place.
+        return oldIndex;
+      }
+    } else {
+      // This is an insertion.
+      newFiber.effectTag = Placement;
+      return lastPlacedIndex;
+    }
   }
 
   function deleteRemainingChildren(returnFiber, currentFirstChild) {
@@ -81,16 +189,54 @@ function ChildReconciler(shouldClone, shouldTrackSideEffects) {
   }
 
   function reconcileChildrenArray(returnFiber, currentFirstChild, newChildren) {
-    let resultingFirstChild;
-    let previousNewFiber;
+    let resultingFirstChild = null;
+    let previousNewFiber = null;
 
-    if (currentFirstChild == null) {
-      for (let newIdx = 0; newIdx < newChildren.length; newIdx++) {
+    let oldFiber = currentFirstChild;
+    let lastPlacedIndex = 0;
+    let newIdx = 0;
+    let nextOldFiber = null;
+    for (; oldFiber != null && newIdx < newChildren.length; newIdx++) {
+      if (oldFiber.index > newIdx) {
+        nextOldFiber = oldFiber;
+        oldFiber = null;
+      } else {
+        nextOldFiber = oldFiber.sibling;
+      }
+      const newFiber = updateSlot(returnFiber, oldFiber, newChildren[newIdx]);
+      if (newFiber == null) {
+        if (oldFiber == null) {
+          oldFiber = nextOldFiber;
+        }
+        break;
+      }
+      if (shouldTrackSideEffects) {
+        if (oldFiber && newFiber.alternate == null) {
+          deleteChild(returnFiber, oldFiber);
+        }
+      }
+      lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+      if (previousNewFiber == null) {
+        resultingFirstChild = newFiber;
+      } else {
+        previousNewFiber.sibling = newFiber;
+      }
+      previousNewFiber = newFiber;
+      oldFiber = nextOldFiber;
+    }
+
+    if (newIdx === newChildren.length) {
+      deleteRemainingChildren(returnFiber, oldFiber);
+      return resultingFirstChild;
+    }
+
+    if (oldFiber == null) {
+      for (; newIdx < newChildren.length; newIdx++) {
         const newFiber = createChild(returnFiber, newChildren[newIdx]);
         if (!newFiber) {
           continue;
         }
-        placeChild(newFiber);
+        lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
         if (previousNewFiber == null) {
           resultingFirstChild = newFiber;
         } else {
@@ -99,24 +245,33 @@ function ChildReconciler(shouldClone, shouldTrackSideEffects) {
         previousNewFiber = newFiber;
       }
       return resultingFirstChild;
-    } else {
-      const keys = newChildren.map(child => child.key);
-      let node = returnFiber.child;
-      let previousNode;
-      resultingFirstChild = returnFiber.child;
-      while (node) {
-        if (!keys.includes(node.key)) {
-          if (node === returnFiber.child) {
-            returnFiber.child = node.sibling;
-          } else {
-            previousNode.sibling = node.sibling;
+    }
+
+    const existingChildren = mapRemainingChildren(returnFiber, oldFiber);
+
+    for (; newIdx < newChildren.length; newIdx++) {
+      const newFiber = updateFromMap(existingChildren, returnFiber, newIdx, newChildren[newIdx]);
+      if (newFiber) {
+        if (shouldTrackSideEffects) {
+          if (newFiber.alternate != null) {
+            existingChildren.delete(newFiber.key == null ? newIdx : newFiber.key);
           }
-          deleteChild(returnFiber, node);
         }
-        previousNode = node;
-        node = node.sibling;
+        lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+        if (previousNewFiber == null) {
+          resultingFirstChild = newFiber;
+        } else {
+          previousNewFiber.sibling = newFiber;
+        }
+        previousNewFiber = newFiber;
       }
     }
+
+    if (shouldTrackSideEffects) {
+      existingChildren.forEach(child => deleteChild(returnFiber, child));
+    }
+
+    return resultingFirstChild;
   }
 
   function reconcileSingleTextNode(returnFiber, currentFirstChild, textContent) {

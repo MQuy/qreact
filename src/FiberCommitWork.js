@@ -37,6 +37,14 @@ function unmountHostComponents(current) {
     if (node === current) {
       return;
     }
+    while (node.sibling === null) {
+      if (node.return === null || node.return === current) {
+        return;
+      }
+      node = node.return;
+    }
+    node.sibling.return = node.return;
+    node = node.sibling;
   }
 }
 
