@@ -37,8 +37,8 @@ function unmountHostComponents(current) {
     if (node === current) {
       return;
     }
-    while (node.sibling === null) {
-      if (node.return === null || node.return === current) {
+    while (node.sibling == null) {
+      if (node.return == null || node.return === current) {
         return;
       }
       node = node.return;
@@ -60,7 +60,7 @@ export function commitPlacement(finishedWork) {
       continue;
     }
     while (true) {
-      if (node.return === null || node.return === finishedWork) {
+      if (node.return == null || node.return === finishedWork) {
         return;
       }
       node = node.return;

@@ -27,7 +27,7 @@ export class FiberNode {
   }
 }
 
-export function createWorkInProgress(current) {
+export function createWorkInProgress(current, pendingProps, expirationTime) {
   let workInProgress = current.alternate;
   if (workInProgress == null) {
     workInProgress = new FiberNode(current.tag, current.key);
@@ -43,6 +43,9 @@ export function createWorkInProgress(current) {
     workInProgress.firstEffect = null;
     workInProgress.lastEffect = null;
   }
+
+  workInProgress.expirationTime = expirationTime;
+  workInProgress.pendingProps = pendingProps;
 
   workInProgress.child = current.child;
   workInProgress.memoizedProps = current.memoizedProps;
@@ -67,16 +70,19 @@ export function getRootFromFiber(fiber) {
   return node ? node.stateNode : null;
 }
 
-export function createFiberFromElement(element) {
+export function createFiberFromElement(element, expirationTime) {
   const fiber = createFiberFromElementType(element.type, element.key);
   fiber.pendingProps = element.props;
+  fiber.expirationTime = expirationTime;
 
   return fiber;
 }
 
-export function createFiberFromText(content) {
+export function createFiberFromText(content, expirationTime) {
   const fiber = new FiberNode(HostText);
   fiber.pendingProps = content;
+  fiber.expirationTime = expirationTime;
+
   return fiber;
 }
 
@@ -88,7 +94,7 @@ function createFiberFromElementType(type, key) {
   } else if (typeof type === "string") {
     fiber = new FiberNode(HostComponent, key);
     fiber.type = type;
-  } else if (typeof type === "object" && type !== null && typeof type.tag === "number") {
+  } else if (typeof type === "object" && type != null && typeof type.tag === "number") {
     fiber = type;
   }
   return fiber;

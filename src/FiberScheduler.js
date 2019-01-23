@@ -1,68 +1,178 @@
-import { createWorkInProgress, getRootFromFiber } from "./Fiber";
-import { FunctionalComponent, ClassComponent, HostRoot, HostComponent, HostText } from "./TypeOfWork";
+import { createWorkInProgress } from "./Fiber";
+import { HostRoot } from "./TypeOfWork";
 import { completeWork } from "./FiberCompleteWork";
 import { PerformedWork, Placement, Update, PlacementAndUpdate, Deletion } from "./TypeOfSideEffect";
 import { commitPlacement, commitDeletion, commitWork } from "./FiberCommitWork";
-import {
-  updateClassComponent,
-  updateFunctionalComponent,
-  updateHostComponent,
-  updateHostRoot,
-  updateHostText
-} from "./FiberBeginWork";
+import { beginWork } from "./FiberBeginWork";
+import { Sync, NoWork, msToExpirationTime, Never, computeExpirationBucket } from "./FiberExpirationTime";
+import { getUpdateExpirationTime } from "./UpdateQueue";
 
 const timeHeuristicForUnitOfWork = 1;
-let nextScheduledRoot = null;
+let nextFlushedRoot = null;
+let lastScheduledRoot = null;
 let nextUnitOfWork = null;
 let nextEffect = null;
-let pendingCommit = null;
+let isBatchingUpdates = false;
+let isRendering = false;
+let expirationContext = NoWork;
+let isWorking = false;
+let isCommitting = false;
+let nextRenderExpirationTime = NoWork;
+let mostRecentCurrentTime = msToExpirationTime(0);
 
-export function scheduleUpdate(fiber) {
-  let root = getRootFromFiber(fiber);
-  if (!root.isScheduled) {
-    root.isScheduled = true;
-    nextScheduledRoot = root;
-  }
-}
-
-export function performWork(deadline) {
-  workLoop(deadline);
-
-  if (nextUnitOfWork) {
-    requestIdleCallback(performWork);
-  }
-}
-
-export function workLoop(deadline) {
-  if (pendingCommit != null) {
-    commitAllWork(pendingCommit);
-  } else if (nextUnitOfWork == null) {
-    resetNextUnitOfWork();
-  }
-  while (nextUnitOfWork != null && deadline.timeRemaining() > timeHeuristicForUnitOfWork) {
-    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
-    if (nextUnitOfWork == null) {
-      if (deadline.timeRemaining() > timeHeuristicForUnitOfWork) {
-        commitAllWork(pendingCommit);
-      } else {
-        requestIdleCallback(performWork);
+export function scheduleWork(fiber, expirationTime) {
+  let node = fiber;
+  while (node != null) {
+    if (node.expirationTime === NoWork || node.expirationTime > expirationTime) {
+      node.expirationTime = expirationTime;
+    }
+    if (node.alternate != null) {
+      if (node.alternate.expirationTime === NoWork || node.alternate.expirationTime > expirationTime) {
+        node.alternate.expirationTime = expirationTime;
       }
+    }
+    if (node["return"] == null) {
+      if (node.tag === HostRoot) {
+        var root = node.stateNode;
+
+        requestWork(root, expirationTime);
+      } else {
+        return;
+      }
+    }
+    node = node["return"];
+  }
+}
+
+function requestWork(root, expirationTime) {
+  if (!nextFlushedRoot) {
+    lastScheduledRoot = nextFlushedRoot = root;
+    root.remainingExpirationTime = expirationTime;
+  } else {
+    const remainingExpirationTime = root.remainingExpirationTime;
+    if (remainingExpirationTime === NoWork || expirationTime < remainingExpirationTime) {
+      root.remainingExpirationTime = expirationTime;
+    }
+  }
+
+  if (isBatchingUpdates || isRendering) {
+    return;
+  }
+  if (expirationTime === Sync) {
+    performWork(Sync, null);
+  } else {
+    requestIdleCallback(performAsyncWork);
+  }
+}
+
+function performAsyncWork(deadline) {
+  performWork(NoWork, deadline);
+}
+
+function performSyncWork() {
+  performWork(Sync, null);
+}
+
+export function performWork(minExpirationTime, deadline) {
+  if (lastScheduledRoot != null) {
+    nextFlushedRoot = lastScheduledRoot;
+  }
+  if (minExpirationTime === NoWork || nextFlushedRoot.remainingExpirationTime <= minExpirationTime) {
+    performWorkOnRoot(nextFlushedRoot, nextFlushedRoot.remainingExpirationTime, deadline);
+  }
+
+  if (nextFlushedRoot.remainingExpirationTime == NoWork) {
+    nextFlushedRoot = null;
+  } else {
+    requestIdleCallback(performAsyncWork);
+  }
+}
+
+function performWorkOnRoot(root, expirationTime, deadline) {
+  isRendering = true;
+  if (expirationTime <= recalculateCurrentTime()) {
+    // Flush sync work.
+    let finishedWork = root.finishedWork;
+    if (finishedWork != null) {
+      // This root is already complete. We can commit it.
+      root.finishedWork = null;
+      root.remainingExpirationTime = commitRoot(finishedWork);
+    } else {
+      root.finishedWork = null;
+      finishedWork = renderRoot(root, expirationTime);
+      if (finishedWork != null) {
+        // We've completed the root. Commit it.
+        root.remainingExpirationTime = commitRoot(finishedWork);
+      }
+    }
+  } else {
+    // Flush async work.
+    var finishedWork = root.finishedWork;
+    if (finishedWork != null) {
+      // This root is already complete. We can commit it.
+      root.finishedWork = null;
+      root.remainingExpirationTime = commitRoot(finishedWork);
+    } else {
+      root.finishedWork = null;
+      finishedWork = renderRoot(root, expirationTime, deadline);
+      if (finishedWork != null) {
+        // We've completed the root. Check the deadline one more time
+        // before committing.
+        if (deadline.timeRemaining() > timeHeuristicForUnitOfWork) {
+          // Still time left. Commit the root.
+          root.remainingExpirationTime = commitRoot(finishedWork);
+        } else {
+          // There's no time left. Mark this root as complete. We'll come
+          // back and commit it later.
+          root.finishedWork = finishedWork;
+        }
+      }
+    }
+  }
+
+  isRendering = false;
+}
+
+function renderRoot(root, expirationTime, deadline) {
+  isWorking = true;
+
+  root.isReadyForCommit = false;
+
+  // Check if we're starting from a fresh stack, or if we're resuming from
+  // previously yielded work.
+  if (expirationTime !== nextRenderExpirationTime || nextUnitOfWork == null) {
+    nextRenderExpirationTime = expirationTime;
+    nextUnitOfWork = createWorkInProgress(root.current, null, expirationTime);
+  }
+
+  workLoop(expirationTime, deadline);
+
+  isWorking = false;
+
+  return root.isReadyForCommit ? root.current.alternate : null;
+}
+
+export function workLoop(expirationTime, deadline) {
+  if (nextRenderExpirationTime === NoWork || nextRenderExpirationTime > expirationTime) {
+    return;
+  }
+
+  if (nextRenderExpirationTime <= mostRecentCurrentTime) {
+    // Flush all expired work.
+    while (nextUnitOfWork != null) {
+      nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+    }
+  } else {
+    // Flush asynchronous work until the deadline runs out of time.
+    while (nextUnitOfWork != null && deadline.timeRemaining() > timeHeuristicForUnitOfWork) {
+      nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
     }
   }
 }
 
-function resetNextUnitOfWork() {
-  if (nextScheduledRoot != null && nextScheduledRoot.isScheduled === false) {
-    nextScheduledRoot = null;
-    return;
-  }
-
-  nextUnitOfWork = createWorkInProgress(nextScheduledRoot.current);
-}
-
 function performUnitOfWork(workInProgress) {
   const current = workInProgress.alternate;
-  let next = beginWork(current, workInProgress);
+  let next = beginWork(current, workInProgress, nextRenderExpirationTime);
   if (next == null) {
     next = completeUnitOfWork(workInProgress);
   }
@@ -72,10 +182,12 @@ function performUnitOfWork(workInProgress) {
 function completeUnitOfWork(workInProgress) {
   while (true) {
     let current = workInProgress.alternate;
-    let next = completeWork(current, workInProgress);
+    let next = completeWork(current, workInProgress, nextRenderExpirationTime);
 
     let returnFiber = workInProgress.return;
     let siblingFiber = workInProgress.sibling;
+
+    resetExpirationTime(workInProgress, nextRenderExpirationTime);
 
     if (next != null) {
       return next;
@@ -109,30 +221,19 @@ function completeUnitOfWork(workInProgress) {
       workInProgress = returnFiber;
       continue;
     } else {
-      pendingCommit = workInProgress;
+      const root = workInProgress.stateNode;
+      root.isReadyForCommit = true;
       return null;
     }
   }
 }
 
-function beginWork(current, workInProgress) {
-  switch (workInProgress.tag) {
-    case FunctionalComponent:
-      return updateFunctionalComponent(current, workInProgress);
-    case ClassComponent:
-      return updateClassComponent(current, workInProgress);
-    case HostRoot:
-      return updateHostRoot(current, workInProgress);
-    case HostComponent:
-      return updateHostComponent(current, workInProgress);
-    case HostText:
-      return updateHostText(current, workInProgress);
-  }
-}
+function commitRoot(finishedWork) {
+  isWorking = true;
+  isCommitting = true;
 
-function commitAllWork(finishedWork) {
-  pendingCommit = null;
   let root = finishedWork.stateNode;
+  root.isReadyForCommit = false;
 
   let firstEffect = null;
   if (finishedWork.effectTag > PerformedWork) {
@@ -152,8 +253,11 @@ function commitAllWork(finishedWork) {
   }
 
   root.current = finishedWork;
-  root.isScheduled = false;
-  resetNextUnitOfWork();
+
+  isCommitting = false;
+  isWorking = false;
+
+  return root.current.expirationTime;
 }
 
 function commitAllHostEffects() {
@@ -185,4 +289,78 @@ function commitAllHostEffects() {
     }
     nextEffect = nextEffect.nextEffect;
   }
+}
+
+export function batchedUpdates(fn, a) {
+  const previousIsBatchingUpdates = isBatchingUpdates;
+  isBatchingUpdates = true;
+  try {
+    return fn(a);
+  } finally {
+    isBatchingUpdates = previousIsBatchingUpdates;
+    if (!isBatchingUpdates && !isRendering) {
+      performSyncWork();
+    }
+  }
+}
+
+export function deferredUpdates(fn) {
+  const previousExpirationContext = expirationContext;
+  expirationContext = computeAsyncExpiration();
+  try {
+    return fn();
+  } finally {
+    expirationContext = previousExpirationContext;
+  }
+}
+
+function computeAsyncExpiration() {
+  const currentTime = recalculateCurrentTime();
+  const expirationMs = 1000;
+  const bucketSizeMs = 200;
+  return computeExpirationBucket(currentTime, expirationMs, bucketSizeMs);
+}
+
+function recalculateCurrentTime() {
+  mostRecentCurrentTime = msToExpirationTime(performance.now());
+  return mostRecentCurrentTime;
+}
+
+export function computeExpirationForFiber(fiber) {
+  let expirationTime;
+  if (expirationContext !== NoWork) {
+    expirationTime = expirationContext;
+  } else if (isWorking) {
+    if (isCommitting) {
+      expirationTime = Sync;
+    } else {
+      expirationTime = nextRenderExpirationTime;
+    }
+  } else {
+    expirationTime = Sync;
+  }
+  return expirationTime;
+}
+
+function resetExpirationTime(workInProgress, renderTime) {
+  if (renderTime !== Never && workInProgress.expirationTime === Never) {
+    // The children of this component are hidden. Don't bubble their
+    // expiration times.
+    return;
+  }
+
+  // Check for pending updates.
+  let newExpirationTime = getUpdateExpirationTime(workInProgress);
+
+  // TODO: Calls need to visit stateNode
+
+  // Bubble up the earliest expiration time.
+  let child = workInProgress.child;
+  while (child != null) {
+    if (child.expirationTime !== NoWork && (newExpirationTime === NoWork || newExpirationTime > child.expirationTime)) {
+      newExpirationTime = child.expirationTime;
+    }
+    child = child.sibling;
+  }
+  workInProgress.expirationTime = newExpirationTime;
 }

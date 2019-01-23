@@ -4,9 +4,16 @@ import { getRootFromFiber } from "./Fiber";
 import { createTextInstance } from "./FiberCommitWork";
 import { createInstance, appendChild } from "./DOMFiberEntry";
 import { FunctionalComponent, ClassComponent, HostRoot, HostComponent, HostText } from "./TypeOfWork";
+import { Never } from "./FiberExpirationTime";
 
-export function completeWork(current, workInProgress) {
-  const newProps = workInProgress.pendingProps || workInProgress.memoizedProps;
+export function completeWork(current, workInProgress, renderExpirationTime) {
+  let newProps = workInProgress.pendingProps;
+  if (newProps == null) {
+    newProps = workInProgress.memoizedProps;
+  } else if (workInProgress.expirationTime !== Never || renderExpirationTime === Never) {
+    // Reset the pending props, unless this was a down-prioritization.
+    workInProgress.pendingProps = null;
+  }
 
   switch (workInProgress.tag) {
     case FunctionalComponent:
@@ -64,18 +71,18 @@ export function completeWork(current, workInProgress) {
 
 function appendAllChildren(parent, workInProgress) {
   let node = workInProgress.child;
-  while (node !== null) {
+  while (node != null) {
     if (node.tag === HostComponent || node.tag === HostText) {
       appendChild(parent, node.stateNode);
-    } else if (node.child !== null) {
+    } else if (node.child != null) {
       node = node.child;
       continue;
     }
     if (node === workInProgress) {
       return;
     }
-    while (node.sibling === null) {
-      if (node.return === null || node.return === workInProgress) {
+    while (node.sibling == null) {
+      if (node.return == null || node.return === workInProgress) {
         return;
       }
       node = node.return;

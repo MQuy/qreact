@@ -1,5 +1,5 @@
-import { scheduleUpdate } from "./FiberScheduler";
-import { createUpdate, enqueueUpdate } from "./UpdateQueue";
+import { scheduleWork, computeExpirationForFiber } from "./FiberScheduler";
+import { createUpdate, insertUpdateIntoFiber } from "./UpdateQueue";
 
 export class Component {
   constructor(props) {
@@ -8,10 +8,11 @@ export class Component {
 
   setState(partialState) {
     const fiber = ReactInstanceMap.get(this);
-    const update = createUpdate(partialState);
+    const expirationTime = computeExpirationForFiber(fiber);
+    const update = createUpdate(partialState, expirationTime);
 
-    enqueueUpdate(fiber, update);
-    scheduleUpdate(fiber);
+    insertUpdateIntoFiber(fiber, update);
+    scheduleWork(fiber, expirationTime);
   }
 }
 

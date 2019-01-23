@@ -8,6 +8,7 @@ The dead simple implementation of React for the learning purpose on how React wo
 - [x] Reconciliation
 - [x] Global event handler
 - [x] Fiber
-- [ ] Priority
-- [ ] Synthetic event
+- [x] Priority
+- [ ] Suspend
 - [ ] Hooks
+- [ ] Synthetic event

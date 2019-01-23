@@ -1,18 +1,29 @@
-import { cloneChildFibers, mountChildFibersInPlace, reconcileChildFibers, reconcileChildFibersInPlace } from "./ChildFiber";
+import { cloneChildFibers, reconcileChildFibers, mountChildFibers } from "./ChildFiber";
 import { ReactInstanceMap } from "./Component";
 import { Placement, PerformedWork } from "./TypeOfSideEffect";
+import { processUpdateQueue } from "./UpdateQueue";
+import { FunctionalComponent, ClassComponent, HostRoot, HostComponent, HostText } from "./TypeOfWork";
 
-export function updateHostRoot(current, workInProgress) {
+export function beginWork(current, workInProgress, renderExpirationTime) {
+  switch (workInProgress.tag) {
+    case FunctionalComponent:
+      return updateFunctionalComponent(current, workInProgress);
+    case ClassComponent:
+      return updateClassComponent(current, workInProgress, renderExpirationTime);
+    case HostRoot:
+      return updateHostRoot(current, workInProgress, renderExpirationTime);
+    case HostComponent:
+      return updateHostComponent(current, workInProgress);
+    case HostText:
+      return updateHostText(current, workInProgress);
+  }
+}
+
+export function updateHostRoot(current, workInProgress, renderExpirationTime) {
   let updateQueue = workInProgress.updateQueue;
   if (updateQueue != null) {
-    let state = beginUpdateQueue(workInProgress, updateQueue, workInProgress.memoizedState);
-    let element = state.element;
-    if (current == null || current.child == null) {
-      workInProgress.effectTag |= Placement;
-      workInProgress.child = mountChildFibersInPlace(workInProgress, workInProgress.child, element);
-    } else {
-      reconcileChildren(current, workInProgress, element);
-    }
+    let state = processUpdateQueue(current, workInProgress, updateQueue, null, null, renderExpirationTime);
+    reconcileChildren(current, workInProgress, state.element);
     workInProgress.memoizedState = state;
     return workInProgress.child;
   }
@@ -62,7 +73,7 @@ export function updateHostComponent(current, workInProgress) {
   return workInProgress.child;
 }
 
-export function updateClassComponent(current, workInProgress) {
+export function updateClassComponent(current, workInProgress, renderExpirationTime) {
   let shouldUpdate;
   if (current == null) {
     if (!workInProgress.stateNode) {
@@ -76,17 +87,33 @@ export function updateClassComponent(current, workInProgress) {
       shouldUpdate = true;
     }
   } else {
-    shouldUpdate = updateClassInstance(workInProgress);
+    shouldUpdate = updateClassInstance(current, workInProgress, renderExpirationTime);
   }
   return finishClassComponent(current, workInProgress, shouldUpdate);
 }
 
-function updateClassInstance(workInProgress) {
+function updateClassInstance(current, workInProgress, renderExpirationTime) {
   const instance = workInProgress.stateNode;
+
+  instance.props = workInProgress.memoizedProps;
+  instance.state = workInProgress.memoizedState;
+
   const oldProps = workInProgress.memoizedProps;
   const newProps = workInProgress.pendingProps || oldProps;
   const oldState = workInProgress.memoizedState;
-  const newState = beginUpdateQueue(workInProgress, workInProgress.updateQueue, oldState);
+  let newState;
+  if (workInProgress.updateQueue != null) {
+    newState = processUpdateQueue(
+      current,
+      workInProgress,
+      workInProgress.updateQueue,
+      instance,
+      newProps,
+      renderExpirationTime
+    );
+  } else {
+    newState = oldState;
+  }
 
   if (oldProps === newProps && oldState === newState && workInProgress.updateQueue == null) {
     return false;
@@ -94,22 +121,6 @@ function updateClassInstance(workInProgress) {
   instance.props = newProps;
   instance.state = newState;
   return true;
-}
-
-function beginUpdateQueue(workInProgress, queue, prevState) {
-  let state = prevState;
-  let update = queue ? queue.first : null;
-  while (update != null) {
-    queue.first = update.next;
-    if (queue.first == null) {
-      queue.last = null;
-    }
-
-    state = { ...state, ...update.partialState };
-    update = update.next;
-  }
-  workInProgress.updateQueue = null;
-  return state;
 }
 
 function finishClassComponent(current, workInProgress, shouldUpdate) {
@@ -133,11 +144,20 @@ function bailoutOnAlreadyFinishedWork(workInProgress) {
 }
 
 function reconcileChildren(current, workInProgress, nextChildren) {
+  const renderExpirationTime = workInProgress.expirationTime;
   if (current == null) {
-    workInProgress.child = mountChildFibersInPlace(workInProgress, workInProgress.child, nextChildren);
-  } else if (current.child === workInProgress.child) {
-    workInProgress.child = reconcileChildFibers(workInProgress, workInProgress.child, nextChildren);
+    // If this is a fresh new component that hasn't been rendered yet, we
+    // won't update its child set by applying minimal side-effects. Instead,
+    // we will add them all to the child before it gets rendered. That means
+    // we can optimize this reconciliation pass by not tracking side-effects.
+    workInProgress.child = mountChildFibers(workInProgress, null, nextChildren, renderExpirationTime);
   } else {
-    workInProgress.child = reconcileChildFibersInPlace(workInProgress, workInProgress.child, nextChildren);
+    // If the current child is the same as the work in progress, it means that
+    // we haven't yet started any work on these children. Therefore, we use
+    // the clone algorithm to create a copy of all the current children.
+
+    // If we had any progressed work already, that is invalid at this point so
+    // let's throw it out.
+    workInProgress.child = reconcileChildFibers(workInProgress, current.child, nextChildren, renderExpirationTime);
   }
 }

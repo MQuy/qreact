@@ -60,8 +60,10 @@ class Story extends React.Component {
   }
 
   handleClick = () => {
-    this.setState({
-      likes: this.state.likes + 1
+    React.deferredUpdates(() => {
+      this.setState({
+        likes: this.state.likes + 1
+      });
     });
   };
 }

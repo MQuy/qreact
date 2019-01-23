@@ -1,7 +1,8 @@
 import { HostRoot } from "./TypeOfWork";
-import { enqueueUpdate, createUpdate } from "./UpdateQueue";
-import { scheduleUpdate, performWork } from "./FiberScheduler";
+import { insertUpdateIntoFiber, createUpdate } from "./UpdateQueue";
+import { scheduleWork, computeExpirationForFiber } from "./FiberScheduler";
 import { FiberNode } from "./Fiber";
+import { NoWork } from "./FiberExpirationTime";
 
 export function render(element, container) {
   let root = container._reactRootContainer;
@@ -14,11 +15,12 @@ export function render(element, container) {
 
 function updateContainer(element, root) {
   const current = root.current;
-  const update = createUpdate({ element });
+  const expirationTime = computeExpirationForFiber(current);
+  const update = createUpdate({ element }, expirationTime);
 
-  enqueueUpdate(current, update);
-  scheduleUpdate(current);
-  requestIdleCallback(performWork);
+  root.expirationTime = expirationTime;
+  insertUpdateIntoFiber(current, update);
+  scheduleWork(current, expirationTime);
 }
 
 function createFiberRoot(containerInfo) {
@@ -27,7 +29,7 @@ function createFiberRoot(containerInfo) {
     current: uninitializedFiber,
     containerInfo: containerInfo,
     isScheduled: false,
-    nextScheduledRoot: null
+    remainingExpirationTime: NoWork
   };
   uninitializedFiber.stateNode = root;
   return root;

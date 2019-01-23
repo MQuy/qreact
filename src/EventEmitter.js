@@ -1,4 +1,4 @@
-import { performWork } from "./FiberScheduler";
+import { performWork, batchedUpdates } from "./FiberScheduler";
 import { getClosestInstanceFromNode, getFiberCurrentPropsFromNode } from "./DomComponent";
 
 const alreadyListeningTo = {};
@@ -33,8 +33,7 @@ function dispatchEvent(name, event) {
     const listener = getListener(targetInst, dispatchConfig.phasedRegistrationNames.bubbled);
 
     if (typeof listener === "function") {
-      listener(event);
-      requestIdleCallback(performWork);
+      batchedUpdates(listener, event);
     }
   }
 }
