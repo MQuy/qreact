@@ -1,5 +1,10 @@
 import { NoEffect } from "./TypeOfSideEffect";
-import { HostRoot, HostComponent, HostText, ClassComponent } from "./TypeOfWork";
+import {
+  HostRoot,
+  HostComponent,
+  HostText,
+  ClassComponent,
+} from "./TypeOfWork";
 
 export class FiberNode {
   constructor(tag, key) {
@@ -94,7 +99,11 @@ function createFiberFromElementType(type, key) {
   } else if (typeof type === "string") {
     fiber = new FiberNode(HostComponent, key);
     fiber.type = type;
-  } else if (typeof type === "object" && type != null && typeof type.tag === "number") {
+  } else if (
+    typeof type === "object" &&
+    type != null &&
+    typeof type.tag === "number"
+  ) {
     fiber = type;
   }
   return fiber;

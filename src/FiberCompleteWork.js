@@ -3,14 +3,23 @@ import { Placement, Update } from "./TypeOfSideEffect";
 import { getRootFromFiber } from "./Fiber";
 import { createTextInstance } from "./FiberCommitWork";
 import { createInstance, appendChild } from "./DOMFiberEntry";
-import { FunctionalComponent, ClassComponent, HostRoot, HostComponent, HostText } from "./TypeOfWork";
+import {
+  FunctionalComponent,
+  ClassComponent,
+  HostRoot,
+  HostComponent,
+  HostText,
+} from "./TypeOfWork";
 import { Never } from "./FiberExpirationTime";
 
 export function completeWork(current, workInProgress, renderExpirationTime) {
   let newProps = workInProgress.pendingProps;
   if (newProps == null) {
     newProps = workInProgress.memoizedProps;
-  } else if (workInProgress.expirationTime !== Never || renderExpirationTime === Never) {
+  } else if (
+    workInProgress.expirationTime !== Never ||
+    renderExpirationTime === Never
+  ) {
     // Reset the pending props, unless this was a down-prioritization.
     workInProgress.pendingProps = null;
   }
@@ -43,7 +52,12 @@ export function completeWork(current, workInProgress, renderExpirationTime) {
         if (!newProps) {
           return null;
         }
-        let instance = createInstance(type, newProps, rootContainerInstance, workInProgress);
+        let instance = createInstance(
+          type,
+          newProps,
+          rootContainerInstance,
+          workInProgress,
+        );
 
         appendAllChildren(instance, workInProgress);
         setInitialProperties(instance, type, newProps, rootContainerInstance);

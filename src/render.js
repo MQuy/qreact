@@ -29,7 +29,7 @@ function createFiberRoot(containerInfo) {
     current: uninitializedFiber,
     containerInfo: containerInfo,
     isScheduled: false,
-    remainingExpirationTime: NoWork
+    remainingExpirationTime: NoWork,
   };
   uninitializedFiber.stateNode = root;
   return root;

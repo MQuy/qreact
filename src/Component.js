@@ -31,5 +31,5 @@ export const ReactInstanceMap = {
 
   set: function(key, value) {
     key._reactInternalFiber = value;
-  }
+  },
 };

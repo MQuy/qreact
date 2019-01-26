@@ -1,5 +1,9 @@
 import { removeChild, appendChild } from "./DOMFiberEntry";
-import { precacheFiberNode, updateFiberProps, updateDOMProperties } from "./DomComponent";
+import {
+  precacheFiberNode,
+  updateFiberProps,
+  updateDOMProperties,
+} from "./DomComponent";
 import { HostComponent, HostText, HostRoot } from "./TypeOfWork";
 
 export function createTextInstance(text, internalInstanceHandle) {

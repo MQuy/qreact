@@ -1,10 +1,22 @@
 import { createWorkInProgress } from "./Fiber";
 import { HostRoot } from "./TypeOfWork";
 import { completeWork } from "./FiberCompleteWork";
-import { PerformedWork, Placement, Update, PlacementAndUpdate, Deletion } from "./TypeOfSideEffect";
+import {
+  PerformedWork,
+  Placement,
+  Update,
+  PlacementAndUpdate,
+  Deletion,
+} from "./TypeOfSideEffect";
 import { commitPlacement, commitDeletion, commitWork } from "./FiberCommitWork";
 import { beginWork } from "./FiberBeginWork";
-import { Sync, NoWork, msToExpirationTime, Never, computeExpirationBucket } from "./FiberExpirationTime";
+import {
+  Sync,
+  NoWork,
+  msToExpirationTime,
+  Never,
+  computeExpirationBucket,
+} from "./FiberExpirationTime";
 import { getUpdateExpirationTime } from "./UpdateQueue";
 
 const timeHeuristicForUnitOfWork = 1;
@@ -23,11 +35,17 @@ let mostRecentCurrentTime = msToExpirationTime(0);
 export function scheduleWork(fiber, expirationTime) {
   let node = fiber;
   while (node != null) {
-    if (node.expirationTime === NoWork || node.expirationTime > expirationTime) {
+    if (
+      node.expirationTime === NoWork ||
+      node.expirationTime > expirationTime
+    ) {
       node.expirationTime = expirationTime;
     }
     if (node.alternate != null) {
-      if (node.alternate.expirationTime === NoWork || node.alternate.expirationTime > expirationTime) {
+      if (
+        node.alternate.expirationTime === NoWork ||
+        node.alternate.expirationTime > expirationTime
+      ) {
         node.alternate.expirationTime = expirationTime;
       }
     }
@@ -50,7 +68,10 @@ function requestWork(root, expirationTime) {
     root.remainingExpirationTime = expirationTime;
   } else {
     const remainingExpirationTime = root.remainingExpirationTime;
-    if (remainingExpirationTime === NoWork || expirationTime < remainingExpirationTime) {
+    if (
+      remainingExpirationTime === NoWork ||
+      expirationTime < remainingExpirationTime
+    ) {
       root.remainingExpirationTime = expirationTime;
     }
   }
@@ -77,8 +98,15 @@ export function performWork(minExpirationTime, deadline) {
   if (lastScheduledRoot != null) {
     nextFlushedRoot = lastScheduledRoot;
   }
-  if (minExpirationTime === NoWork || nextFlushedRoot.remainingExpirationTime <= minExpirationTime) {
-    performWorkOnRoot(nextFlushedRoot, nextFlushedRoot.remainingExpirationTime, deadline);
+  if (
+    minExpirationTime === NoWork ||
+    nextFlushedRoot.remainingExpirationTime <= minExpirationTime
+  ) {
+    performWorkOnRoot(
+      nextFlushedRoot,
+      nextFlushedRoot.remainingExpirationTime,
+      deadline,
+    );
   }
 
   if (nextFlushedRoot.remainingExpirationTime == NoWork) {
@@ -153,7 +181,10 @@ function renderRoot(root, expirationTime, deadline) {
 }
 
 export function workLoop(expirationTime, deadline) {
-  if (nextRenderExpirationTime === NoWork || nextRenderExpirationTime > expirationTime) {
+  if (
+    nextRenderExpirationTime === NoWork ||
+    nextRenderExpirationTime > expirationTime
+  ) {
     return;
   }
 
@@ -164,7 +195,10 @@ export function workLoop(expirationTime, deadline) {
     }
   } else {
     // Flush asynchronous work until the deadline runs out of time.
-    while (nextUnitOfWork != null && deadline.timeRemaining() > timeHeuristicForUnitOfWork) {
+    while (
+      nextUnitOfWork != null &&
+      deadline.timeRemaining() > timeHeuristicForUnitOfWork
+    ) {
       nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
     }
   }
@@ -357,7 +391,10 @@ function resetExpirationTime(workInProgress, renderTime) {
   // Bubble up the earliest expiration time.
   let child = workInProgress.child;
   while (child != null) {
-    if (child.expirationTime !== NoWork && (newExpirationTime === NoWork || newExpirationTime > child.expirationTime)) {
+    if (
+      child.expirationTime !== NoWork &&
+      (newExpirationTime === NoWork || newExpirationTime > child.expirationTime)
+    ) {
       newExpirationTime = child.expirationTime;
     }
     child = child.sibling;

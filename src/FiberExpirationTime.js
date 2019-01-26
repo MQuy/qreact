@@ -15,6 +15,13 @@ function ceiling(num, precision) {
   return (((num / precision) | 0) + 1) * precision;
 }
 
-export function computeExpirationBucket(currentTime, expirationInMs, bucketSizeMs) {
-  return ceiling(currentTime + expirationInMs / UNIT_SIZE, bucketSizeMs / UNIT_SIZE);
+export function computeExpirationBucket(
+  currentTime,
+  expirationInMs,
+  bucketSizeMs,
+) {
+  return ceiling(
+    currentTime + expirationInMs / UNIT_SIZE,
+    bucketSizeMs / UNIT_SIZE,
+  );
 }

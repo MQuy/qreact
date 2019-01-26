@@ -29,6 +29,6 @@ export function createElement(type, config, children) {
     $$typeof: REACT_ELEMENT_TYPE,
     type,
     key,
-    props
+    props,
   };
 }

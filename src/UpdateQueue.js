@@ -41,7 +41,7 @@ export function insertUpdateIntoFiber(fiber, update) {
 function createUpdateQueue() {
   return {
     first: null,
-    last: null
+    last: null,
   };
 }
 
@@ -52,7 +52,10 @@ function insertUpdateIntoQueue(queue, update) {
     queue.last.next = update;
     queue.last = update;
   }
-  if (queue.expirationTime === NoWork || queue.expirationTime > update.expirationTime) {
+  if (
+    queue.expirationTime === NoWork ||
+    queue.expirationTime > update.expirationTime
+  ) {
     queue.expirationTime = update.expirationTime;
   }
 }
@@ -62,7 +65,7 @@ export function createUpdate(partialState, expirationTime) {
     partialState,
     expirationTime,
     next: null,
-    callback: null
+    callback: null,
   };
 }
 
@@ -77,14 +80,21 @@ export function getUpdateExpirationTime(fiber) {
   return updateQueue.expirationTime;
 }
 
-export function processUpdateQueue(current, workInProgress, queue, instance, props, renderExpirationTime) {
+export function processUpdateQueue(
+  current,
+  workInProgress,
+  queue,
+  instance,
+  props,
+  renderExpirationTime,
+) {
   if (current != null && current.updateQueue === queue) {
     // We need to create a work-in-progress queue, by cloning the current queue.
     const currentQueue = queue;
     queue = workInProgress.updateQueue = {
       expirationTime: currentQueue.expirationTime,
       first: currentQueue.first,
-      last: currentQueue.last
+      last: currentQueue.last,
     };
   }
 
@@ -104,7 +114,10 @@ export function processUpdateQueue(current, workInProgress, queue, instance, pro
     if (updateExpirationTime > renderExpirationTime) {
       // This update does not have sufficient priority. Skip it.
       const remainingExpirationTime = queue.expirationTime;
-      if (remainingExpirationTime === NoWork || remainingExpirationTime > updateExpirationTime) {
+      if (
+        remainingExpirationTime === NoWork ||
+        remainingExpirationTime > updateExpirationTime
+      ) {
         // Update the remaining expiration time.
         queue.expirationTime = updateExpirationTime;
       }

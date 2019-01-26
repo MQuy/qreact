@@ -1,15 +1,29 @@
-import { cloneChildFibers, reconcileChildFibers, mountChildFibers } from "./ChildFiber";
+import {
+  cloneChildFibers,
+  reconcileChildFibers,
+  mountChildFibers,
+} from "./ChildFiber";
 import { ReactInstanceMap } from "./Component";
 import { Placement, PerformedWork } from "./TypeOfSideEffect";
 import { processUpdateQueue } from "./UpdateQueue";
-import { FunctionalComponent, ClassComponent, HostRoot, HostComponent, HostText } from "./TypeOfWork";
+import {
+  FunctionalComponent,
+  ClassComponent,
+  HostRoot,
+  HostComponent,
+  HostText,
+} from "./TypeOfWork";
 
 export function beginWork(current, workInProgress, renderExpirationTime) {
   switch (workInProgress.tag) {
     case FunctionalComponent:
       return updateFunctionalComponent(current, workInProgress);
     case ClassComponent:
-      return updateClassComponent(current, workInProgress, renderExpirationTime);
+      return updateClassComponent(
+        current,
+        workInProgress,
+        renderExpirationTime,
+      );
     case HostRoot:
       return updateHostRoot(current, workInProgress, renderExpirationTime);
     case HostComponent:
@@ -22,7 +36,14 @@ export function beginWork(current, workInProgress, renderExpirationTime) {
 export function updateHostRoot(current, workInProgress, renderExpirationTime) {
   let updateQueue = workInProgress.updateQueue;
   if (updateQueue != null) {
-    let state = processUpdateQueue(current, workInProgress, updateQueue, null, null, renderExpirationTime);
+    let state = processUpdateQueue(
+      current,
+      workInProgress,
+      updateQueue,
+      null,
+      null,
+      renderExpirationTime,
+    );
     reconcileChildren(current, workInProgress, state.element);
     workInProgress.memoizedState = state;
     return workInProgress.child;
@@ -52,7 +73,8 @@ export function updateHostText(current, workInProgress) {
   if (current == null) {
     workInProgress.effectTag |= Placement;
   }
-  workInProgress.memoizedProps = workInProgress.pendingProps || workInProgress.memoizedProps;
+  workInProgress.memoizedProps =
+    workInProgress.pendingProps || workInProgress.memoizedProps;
   return null;
 }
 
@@ -73,7 +95,11 @@ export function updateHostComponent(current, workInProgress) {
   return workInProgress.child;
 }
 
-export function updateClassComponent(current, workInProgress, renderExpirationTime) {
+export function updateClassComponent(
+  current,
+  workInProgress,
+  renderExpirationTime,
+) {
   let shouldUpdate;
   if (current == null) {
     if (!workInProgress.stateNode) {
@@ -87,7 +113,11 @@ export function updateClassComponent(current, workInProgress, renderExpirationTi
       shouldUpdate = true;
     }
   } else {
-    shouldUpdate = updateClassInstance(current, workInProgress, renderExpirationTime);
+    shouldUpdate = updateClassInstance(
+      current,
+      workInProgress,
+      renderExpirationTime,
+    );
   }
   return finishClassComponent(current, workInProgress, shouldUpdate);
 }
@@ -109,13 +139,17 @@ function updateClassInstance(current, workInProgress, renderExpirationTime) {
       workInProgress.updateQueue,
       instance,
       newProps,
-      renderExpirationTime
+      renderExpirationTime,
     );
   } else {
     newState = oldState;
   }
 
-  if (oldProps === newProps && oldState === newState && workInProgress.updateQueue == null) {
+  if (
+    oldProps === newProps &&
+    oldState === newState &&
+    workInProgress.updateQueue == null
+  ) {
     return false;
   }
   instance.props = newProps;
@@ -150,7 +184,12 @@ function reconcileChildren(current, workInProgress, nextChildren) {
     // won't update its child set by applying minimal side-effects. Instead,
     // we will add them all to the child before it gets rendered. That means
     // we can optimize this reconciliation pass by not tracking side-effects.
-    workInProgress.child = mountChildFibers(workInProgress, null, nextChildren, renderExpirationTime);
+    workInProgress.child = mountChildFibers(
+      workInProgress,
+      null,
+      nextChildren,
+      renderExpirationTime,
+    );
   } else {
     // If the current child is the same as the work in progress, it means that
     // we haven't yet started any work on these children. Therefore, we use
@@ -158,6 +197,11 @@ function reconcileChildren(current, workInProgress, nextChildren) {
 
     // If we had any progressed work already, that is invalid at this point so
     // let's throw it out.
-    workInProgress.child = reconcileChildFibers(workInProgress, current.child, nextChildren, renderExpirationTime);
+    workInProgress.child = reconcileChildFibers(
+      workInProgress,
+      current.child,
+      nextChildren,
+      renderExpirationTime,
+    );
   }
 }

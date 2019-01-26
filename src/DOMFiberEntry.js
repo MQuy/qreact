@@ -18,7 +18,11 @@ export function setTextContent(node, text) {
   if (text) {
     let firstChild = node.firstChild;
 
-    if (firstChild && firstChild === node.lastChild && firstChild.nodeType === TEXT_NODE) {
+    if (
+      firstChild &&
+      firstChild === node.lastChild &&
+      firstChild.nodeType === TEXT_NODE
+    ) {
       firstChild.nodeValue = text;
       return;
     }
@@ -26,7 +30,12 @@ export function setTextContent(node, text) {
   node.textContent = text;
 }
 
-export function createInstance(type, props, rootContainerInstance, internalInstanceHandle) {
+export function createInstance(
+  type,
+  props,
+  rootContainerInstance,
+  internalInstanceHandle,
+) {
   const domElement = rootContainerInstance.ownerDocument.createElement(type);
   precacheFiberNode(internalInstanceHandle, domElement);
   updateFiberProps(domElement, props);

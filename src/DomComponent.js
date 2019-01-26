@@ -22,7 +22,10 @@ function setInitialDOMProperties(domElement, nextProps) {
       if (["string", "number"].includes(typeof nextProp)) {
         setTextContent(domElement, nextProp);
       }
-    } else if (registrationNameDependencies.hasOwnProperty(propKey) && nextProp != null) {
+    } else if (
+      registrationNameDependencies.hasOwnProperty(propKey) &&
+      nextProp != null
+    ) {
       listenTo(propKey);
     } else {
       domElement.setAttribute(propKey, nextProp);
@@ -48,7 +51,11 @@ export function diffProperties(lastRawProps, nextRawProps) {
   let lastProps = lastRawProps;
   let nextProps = nextRawProps;
   for (let propKey in lastProps) {
-    if (nextProps.hasOwnProperty(propKey) || !lastProps.hasOwnProperty(propKey) || lastProps[propKey] == null) {
+    if (
+      nextProps.hasOwnProperty(propKey) ||
+      !lastProps.hasOwnProperty(propKey) ||
+      lastProps[propKey] == null
+    ) {
       continue;
     }
     if (!registrationNameDependencies.hasOwnProperty(propKey)) {
@@ -58,11 +65,18 @@ export function diffProperties(lastRawProps, nextRawProps) {
   for (let propKey in nextProps) {
     let nextProp = nextProps[propKey];
     let lastProp = lastProps != null ? lastProps[propKey] : undefined;
-    if (!nextProps.hasOwnProperty(propKey) || nextProp === lastProp || (nextProp == null && lastProp == null)) {
+    if (
+      !nextProps.hasOwnProperty(propKey) ||
+      nextProp === lastProp ||
+      (nextProp == null && lastProp == null)
+    ) {
       continue;
     }
     if (propKey === "children") {
-      if (lastProp !== nextProp && (typeof nextProp === "string" || typeof nextProp === "number")) {
+      if (
+        lastProp !== nextProp &&
+        (typeof nextProp === "string" || typeof nextProp === "number")
+      ) {
         (updatePayload = updatePayload || []).push(propKey, "" + nextProp);
       }
     } else if (registrationNameDependencies.hasOwnProperty(propKey)) {

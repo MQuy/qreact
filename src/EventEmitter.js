@@ -1,17 +1,29 @@
 import { performWork, batchedUpdates } from "./FiberScheduler";
-import { getClosestInstanceFromNode, getFiberCurrentPropsFromNode } from "./DomComponent";
+import {
+  getClosestInstanceFromNode,
+  getFiberCurrentPropsFromNode,
+} from "./DomComponent";
 
 const alreadyListeningTo = {};
 export const registrationNameDependencies = {
-  onChange: ["blur", "change", "click", "focus", "input", "keydown", "keyup", "selectionchange"],
-  onClick: ["click"]
+  onChange: [
+    "blur",
+    "change",
+    "click",
+    "focus",
+    "input",
+    "keydown",
+    "keyup",
+    "selectionchange",
+  ],
+  onClick: ["click"],
 };
 const topLevelEventsToDispatchConfig = {
   click: {
     dependencies: ["click"],
     isInteractive: true,
-    phasedRegistrationNames: { bubbled: "onClick", captured: "onClickCapture" }
-  }
+    phasedRegistrationNames: { bubbled: "onClick", captured: "onClickCapture" },
+  },
 };
 
 export function listenTo(registrationName) {
@@ -21,7 +33,10 @@ export function listenTo(registrationName) {
     const dependency = dependencies[i];
     if (!alreadyListeningTo[dependency]) {
       alreadyListeningTo[dependency] = true;
-      document.addEventListener(dependency, dispatchEvent.bind(this, dependency));
+      document.addEventListener(
+        dependency,
+        dispatchEvent.bind(this, dependency),
+      );
     }
   }
 }
@@ -30,7 +45,10 @@ function dispatchEvent(name, event) {
   const targetInst = getClosestInstanceFromNode(event.target);
   if (targetInst) {
     const dispatchConfig = topLevelEventsToDispatchConfig[name];
-    const listener = getListener(targetInst, dispatchConfig.phasedRegistrationNames.bubbled);
+    const listener = getListener(
+      targetInst,
+      dispatchConfig.phasedRegistrationNames.bubbled,
+    );
 
     if (typeof listener === "function") {
       batchedUpdates(listener, event);
