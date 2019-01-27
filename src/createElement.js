@@ -1,4 +1,6 @@
 export const REACT_ELEMENT_TYPE = Symbol.for("react.element");
+export const REACT_ASYNC_MODE_TYPE = Symbol.for("react.async_mode");
+export const REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode");
 
 export function createElement(type, config, children) {
   let propName;

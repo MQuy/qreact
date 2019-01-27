@@ -12,6 +12,7 @@ import {
   HostRoot,
   HostComponent,
   HostText,
+  Mode,
 } from "./TypeOfWork";
 
 export function beginWork(current, workInProgress, renderExpirationTime) {
@@ -30,6 +31,8 @@ export function beginWork(current, workInProgress, renderExpirationTime) {
       return updateHostComponent(current, workInProgress);
     case HostText:
       return updateHostText(current, workInProgress);
+    case Mode:
+      return updateMode(current, workInProgress);
   }
 }
 
@@ -48,7 +51,7 @@ export function updateHostRoot(current, workInProgress, renderExpirationTime) {
     workInProgress.memoizedState = state;
     return workInProgress.child;
   }
-  return bailoutOnAlreadyFinishedWork(workInProgress);
+  return bailoutOnAlreadyFinishedWork(current, workInProgress);
 }
 
 export function updateFunctionalComponent(current, workInProgress) {
@@ -58,7 +61,7 @@ export function updateFunctionalComponent(current, workInProgress) {
   const memoizedProps = workInProgress.memoizedProps;
 
   if (nextProps == null || memoizedProps === nextProps) {
-    return bailoutOnAlreadyFinishedWork(workInProgress);
+    return bailoutOnAlreadyFinishedWork(current, workInProgress);
   }
 
   nextChildren = fn(nextProps);
@@ -86,7 +89,7 @@ export function updateHostComponent(current, workInProgress) {
   let nextProps = workInProgress.pendingProps || memoizedProps;
 
   if (nextProps == null || memoizedProps === nextProps) {
-    return bailoutOnAlreadyFinishedWork(workInProgress);
+    return bailoutOnAlreadyFinishedWork(current, workInProgress);
   }
 
   let nextChildren = nextProps.children;
@@ -159,7 +162,7 @@ function updateClassInstance(current, workInProgress, renderExpirationTime) {
 
 function finishClassComponent(current, workInProgress, shouldUpdate) {
   if (!shouldUpdate) {
-    return bailoutOnAlreadyFinishedWork(workInProgress);
+    return bailoutOnAlreadyFinishedWork(current, workInProgress);
   }
 
   const instance = workInProgress.stateNode;
@@ -172,8 +175,8 @@ function finishClassComponent(current, workInProgress, shouldUpdate) {
   return workInProgress.child;
 }
 
-function bailoutOnAlreadyFinishedWork(workInProgress) {
-  cloneChildFibers(workInProgress);
+function bailoutOnAlreadyFinishedWork(current, workInProgress) {
+  cloneChildFibers(current, workInProgress);
   return workInProgress.child;
 }
 
@@ -204,4 +207,14 @@ function reconcileChildren(current, workInProgress, nextChildren) {
       renderExpirationTime,
     );
   }
+}
+
+function updateMode(current, workInProgress) {
+  const nextChildren = workInProgress.pendingProps.children;
+  if (nextChildren === null || workInProgress.memoizedProps === nextChildren) {
+    return bailoutOnAlreadyFinishedWork(current, workInProgress);
+  }
+  reconcileChildren(current, workInProgress, nextChildren);
+  workInProgress.memoizedProps = nextChildren;
+  return workInProgress.child;
 }

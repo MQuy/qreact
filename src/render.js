@@ -3,11 +3,12 @@ import { insertUpdateIntoFiber, createUpdate } from "./UpdateQueue";
 import { scheduleWork, computeExpirationForFiber } from "./FiberScheduler";
 import { FiberNode } from "./Fiber";
 import { NoWork } from "./FiberExpirationTime";
+import { AsyncMode, NoContext, StrictMode } from "./TypeOfMode";
 
 export function render(element, container) {
   let root = container._reactRootContainer;
   if (!root) {
-    root = createFiberRoot(container);
+    root = createFiberRoot(container, false);
     container._reactRootContainer = root;
   }
   updateContainer(element, root);
@@ -23,9 +24,10 @@ function updateContainer(element, root) {
   scheduleWork(current, expirationTime);
 }
 
-function createFiberRoot(containerInfo) {
-  let uninitializedFiber = new FiberNode(HostRoot);
-  var root = {
+function createFiberRoot(containerInfo, isAsync) {
+  const mode = isAsync ? AsyncMode | StrictMode : NoContext;
+  const uninitializedFiber = new FiberNode(HostRoot, null, null, mode);
+  const root = {
     current: uninitializedFiber,
     containerInfo: containerInfo,
     isScheduled: false,

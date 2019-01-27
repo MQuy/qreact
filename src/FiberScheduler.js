@@ -18,6 +18,7 @@ import {
   computeExpirationBucket,
 } from "./FiberExpirationTime";
 import { getUpdateExpirationTime } from "./UpdateQueue";
+import { AsyncMode } from "./TypeOfMode";
 
 const timeHeuristicForUnitOfWork = 1;
 let nextFlushedRoot = null;
@@ -29,6 +30,8 @@ let isRendering = false;
 let expirationContext = NoWork;
 let isWorking = false;
 let isCommitting = false;
+let lowestPendingInteractiveExpirationTime = NoWork;
+let isBatchingInteractiveUpdates = false;
 let nextRenderExpirationTime = NoWork;
 let mostRecentCurrentTime = msToExpirationTime(0);
 
@@ -170,7 +173,11 @@ function renderRoot(root, expirationTime, deadline) {
   // previously yielded work.
   if (expirationTime !== nextRenderExpirationTime || nextUnitOfWork == null) {
     nextRenderExpirationTime = expirationTime;
-    nextUnitOfWork = createWorkInProgress(root.current, null, expirationTime);
+    nextUnitOfWork = createWorkInProgress(
+      root.current,
+      null,
+      nextRenderExpirationTime,
+    );
   }
 
   workLoop(expirationTime, deadline);
@@ -325,33 +332,19 @@ function commitAllHostEffects() {
   }
 }
 
-export function batchedUpdates(fn, a) {
-  const previousIsBatchingUpdates = isBatchingUpdates;
-  isBatchingUpdates = true;
-  try {
-    return fn(a);
-  } finally {
-    isBatchingUpdates = previousIsBatchingUpdates;
-    if (!isBatchingUpdates && !isRendering) {
-      performSyncWork();
-    }
-  }
+function computeAsyncExpiration(currentTime) {
+  // Given the current clock time, returns an expiration time. We use rounding
+  // to batch like updates together.
+  // Should complete within ~1000ms. 1200ms max.
+  const expirationMs = 5000;
+  const bucketSizeMs = 250;
+  return computeExpirationBucket(currentTime, expirationMs, bucketSizeMs);
 }
 
-export function deferredUpdates(fn) {
-  const previousExpirationContext = expirationContext;
-  expirationContext = computeAsyncExpiration();
-  try {
-    return fn();
-  } finally {
-    expirationContext = previousExpirationContext;
-  }
-}
-
-function computeAsyncExpiration() {
-  const currentTime = recalculateCurrentTime();
-  const expirationMs = 1000;
-  const bucketSizeMs = 200;
+function computeInteractiveExpiration(currentTime) {
+  // Should complete within ~500ms. 600ms max.
+  const expirationMs = 500;
+  const bucketSizeMs = 100;
   return computeExpirationBucket(currentTime, expirationMs, bucketSizeMs);
 }
 
@@ -363,15 +356,46 @@ function recalculateCurrentTime() {
 export function computeExpirationForFiber(fiber) {
   let expirationTime;
   if (expirationContext !== NoWork) {
+    // An explicit expiration context was set;
     expirationTime = expirationContext;
   } else if (isWorking) {
     if (isCommitting) {
+      // Updates that occur during the commit phase should have sync priority
+      // by default.
       expirationTime = Sync;
     } else {
+      // Updates during the render phase should expire at the same time as
+      // the work that is being rendered.
       expirationTime = nextRenderExpirationTime;
     }
   } else {
-    expirationTime = Sync;
+    // No explicit expiration context was set, and we're not currently
+    // performing work. Calculate a new expiration time.
+    if (fiber.mode & AsyncMode) {
+      if (isBatchingInteractiveUpdates) {
+        // This is an interactive update
+        const currentTime = recalculateCurrentTime();
+        expirationTime = computeInteractiveExpiration(currentTime);
+      } else {
+        // This is an async update
+        const currentTime = recalculateCurrentTime();
+        expirationTime = computeAsyncExpiration(currentTime);
+      }
+    } else {
+      // This is a sync update
+      expirationTime = Sync;
+    }
+  }
+  if (isBatchingInteractiveUpdates) {
+    // This is an interactive update. Keep track of the lowest pending
+    // interactive expiration time. This allows us to synchronously flush
+    // all interactive updates when needed.
+    if (
+      lowestPendingInteractiveExpirationTime === NoWork ||
+      expirationTime > lowestPendingInteractiveExpirationTime
+    ) {
+      lowestPendingInteractiveExpirationTime = expirationTime;
+    }
   }
   return expirationTime;
 }
@@ -400,4 +424,50 @@ function resetExpirationTime(workInProgress, renderTime) {
     child = child.sibling;
   }
   workInProgress.expirationTime = newExpirationTime;
+}
+
+export function flushInteractiveUpdates() {
+  if (!isRendering && lowestPendingInteractiveExpirationTime !== NoWork) {
+    // Synchronously flush pending interactive updates.
+    performWork(lowestPendingInteractiveExpirationTime, false, null);
+    lowestPendingInteractiveExpirationTime = NoWork;
+  }
+}
+
+export function batchedUpdates(fn, a) {
+  const previousIsBatchingUpdates = isBatchingUpdates;
+  isBatchingUpdates = true;
+  try {
+    return fn(a);
+  } finally {
+    isBatchingUpdates = previousIsBatchingUpdates;
+    if (!isBatchingUpdates && !isRendering) {
+      performSyncWork();
+    }
+  }
+}
+
+export function interactiveUpdates(fn, a, b) {
+  if (isBatchingInteractiveUpdates) {
+    return fn(a, b);
+  }
+
+  const previousIsBatchingInteractiveUpdates = isBatchingInteractiveUpdates;
+  isBatchingInteractiveUpdates = true;
+  try {
+    return fn(a, b);
+  } finally {
+    isBatchingInteractiveUpdates = previousIsBatchingInteractiveUpdates;
+  }
+}
+
+export function deferredUpdates(fn) {
+  const previousExpirationContext = expirationContext;
+  const currentTime = recalculateCurrentTime();
+  expirationContext = computeAsyncExpiration(currentTime);
+  try {
+    return fn();
+  } finally {
+    expirationContext = previousExpirationContext;
+  }
 }

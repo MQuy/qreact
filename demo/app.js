@@ -1,5 +1,4 @@
-import * as React from "react";
-import { render } from "react-dom";
+import * as React from "../qreact";
 
 class App extends React.Component {
   constructor(props) {
@@ -72,4 +71,9 @@ class Story extends React.Component {
   };
 }
 
-render(<App />, document.getElementById("root"));
+React.render(
+  <React.unstable_AsyncMode>
+    <App />
+  </React.unstable_AsyncMode>,
+  document.getElementById("root"),
+);

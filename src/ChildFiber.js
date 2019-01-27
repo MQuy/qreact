@@ -1,4 +1,8 @@
-import { createWorkInProgress, createFiberFromElement, createFiberFromText } from "./Fiber";
+import {
+  createWorkInProgress,
+  createFiberFromElement,
+  createFiberFromText,
+} from "./Fiber";
 import { NoEffect, Deletion, Placement } from "./TypeOfSideEffect";
 import { HostText } from "./TypeOfWork";
 import { REACT_ELEMENT_TYPE } from "./createElement";
@@ -17,14 +21,24 @@ function ChildReconciler(shouldTrackSideEffects) {
       if (key != null) {
         return null;
       }
-      return updateTextNode(returnFiber, oldFiber, "" + newChild, expirationTime);
+      return updateTextNode(
+        returnFiber,
+        oldFiber,
+        "" + newChild,
+        expirationTime,
+      );
     }
 
     if (typeof newChild === "object" && newChild != null) {
       switch (newChild.$$typeof) {
         case REACT_ELEMENT_TYPE: {
           if (newChild.key === key) {
-            return updateElement(returnFiber, oldFiber, newChild, expirationTime);
+            return updateElement(
+              returnFiber,
+              oldFiber,
+              newChild,
+              expirationTime,
+            );
           } else {
             return null;
           }
@@ -36,7 +50,13 @@ function ChildReconciler(shouldTrackSideEffects) {
           return null;
         }
 
-        return updateFragment(returnFiber, oldFiber, newChild, expirationTime, null);
+        return updateFragment(
+          returnFiber,
+          oldFiber,
+          newChild,
+          expirationTime,
+          null,
+        );
       }
 
       throwOnInvalidObjectType(returnFiber, newChild);
@@ -46,25 +66,50 @@ function ChildReconciler(shouldTrackSideEffects) {
   }
 
   // For array child reconcilation
-  function updateFromMap(existingChildren, returnFiber, newIdx, newChild, expirationTime) {
+  function updateFromMap(
+    existingChildren,
+    returnFiber,
+    newIdx,
+    newChild,
+    expirationTime,
+  ) {
     if (typeof newChild === "string" || typeof newChild === "number") {
       // Text nodes don't have keys, so we neither have to check the old nor
       // new node for the key. If both are text nodes, they match.
       const matchedFiber = existingChildren.get(newIdx) || null;
-      return updateTextNode(returnFiber, matchedFiber, "" + newChild, expirationTime);
+      return updateTextNode(
+        returnFiber,
+        matchedFiber,
+        "" + newChild,
+        expirationTime,
+      );
     }
 
     if (typeof newChild === "object" && newChild != null) {
       switch (newChild.$$typeof) {
         case REACT_ELEMENT_TYPE: {
-          const matchedFiber = existingChildren.get(newChild.key == null ? newIdx : newChild.key) || null;
-          return updateElement(returnFiber, matchedFiber, newChild, expirationTime);
+          const matchedFiber =
+            existingChildren.get(
+              newChild.key == null ? newIdx : newChild.key,
+            ) || null;
+          return updateElement(
+            returnFiber,
+            matchedFiber,
+            newChild,
+            expirationTime,
+          );
         }
       }
 
       if (isArray(newChild) || getIteratorFn(newChild)) {
         const matchedFiber = existingChildren.get(newIdx) || null;
-        return updateFragment(returnFiber, matchedFiber, newChild, expirationTime, null);
+        return updateFragment(
+          returnFiber,
+          matchedFiber,
+          newChild,
+          expirationTime,
+          null,
+        );
       }
 
       throwOnInvalidObjectType(returnFiber, newChild);
@@ -77,7 +122,11 @@ function ChildReconciler(shouldTrackSideEffects) {
   function updateTextNode(returnFiber, current, textContent, expirationTime) {
     if (current == null || current.tag !== HostText) {
       // Insert
-      const created = createFiberFromText(textContent, expirationTime);
+      const created = createFiberFromText(
+        textContent,
+        returnFiber.mode,
+        expirationTime,
+      );
       created.return = returnFiber;
       return created;
     } else {
@@ -97,7 +146,11 @@ function ChildReconciler(shouldTrackSideEffects) {
       return existing;
     } else {
       // Insert
-      const created = createFiberFromElement(element, expirationTime);
+      const created = createFiberFromElement(
+        element,
+        returnFiber.mode,
+        expirationTime,
+      );
       created.return = returnFiber;
       return created;
     }
@@ -184,15 +237,23 @@ function ChildReconciler(shouldTrackSideEffects) {
     return newFiber;
   }
 
-  function createChild(returnFiber, newChild) {
+  function createChild(returnFiber, newChild, expirationTime) {
     if (typeof newChild === "string" || typeof newChild === "number") {
-      const created = createFiberFromText("" + newChild);
+      const created = createFiberFromText(
+        "" + newChild,
+        returnFiber.mode,
+        expirationTime,
+      );
       created.return = returnFiber;
       return created;
     }
 
     if (typeof newChild === "object" && newChild != null) {
-      const created = createFiberFromElement(newChild);
+      const created = createFiberFromElement(
+        newChild,
+        returnFiber.mode,
+        expirationTime,
+      );
       created.return = returnFiber;
       return created;
     }
@@ -200,7 +261,12 @@ function ChildReconciler(shouldTrackSideEffects) {
     return null;
   }
 
-  function reconcileChildrenArray(returnFiber, currentFirstChild, newChildren, expirationTime) {
+  function reconcileChildrenArray(
+    returnFiber,
+    currentFirstChild,
+    newChildren,
+    expirationTime,
+  ) {
     let resultingFirstChild = null;
     let previousNewFiber = null;
 
@@ -215,7 +281,12 @@ function ChildReconciler(shouldTrackSideEffects) {
       } else {
         nextOldFiber = oldFiber.sibling;
       }
-      const newFiber = updateSlot(returnFiber, oldFiber, newChildren[newIdx], expirationTime);
+      const newFiber = updateSlot(
+        returnFiber,
+        oldFiber,
+        newChildren[newIdx],
+        expirationTime,
+      );
       if (newFiber == null) {
         // TODO: This breaks on empty slots like null children. That's
         // unfortunate because it triggers the slow path all the time. We need
@@ -258,7 +329,11 @@ function ChildReconciler(shouldTrackSideEffects) {
       // If we don't have any more existing children we can choose a fast path
       // since the rest will all be insertions.
       for (; newIdx < newChildren.length; newIdx++) {
-        const newFiber = createChild(returnFiber, newChildren[newIdx], expirationTime);
+        const newFiber = createChild(
+          returnFiber,
+          newChildren[newIdx],
+          expirationTime,
+        );
         if (!newFiber) {
           continue;
         }
@@ -279,7 +354,13 @@ function ChildReconciler(shouldTrackSideEffects) {
 
     // Keep scanning and use the map to restore deleted items as moves.
     for (; newIdx < newChildren.length; newIdx++) {
-      const newFiber = updateFromMap(existingChildren, returnFiber, newIdx, newChildren[newIdx], expirationTime);
+      const newFiber = updateFromMap(
+        existingChildren,
+        returnFiber,
+        newIdx,
+        newChildren[newIdx],
+        expirationTime,
+      );
       if (newFiber) {
         if (shouldTrackSideEffects) {
           if (newFiber.alternate != null) {
@@ -287,7 +368,9 @@ function ChildReconciler(shouldTrackSideEffects) {
             // current, that means that we reused the fiber. We need to delete
             // it from the child list so that we don't add it to the deletion
             // list.
-            existingChildren.delete(newFiber.key == null ? newIdx : newFiber.key);
+            existingChildren.delete(
+              newFiber.key == null ? newIdx : newFiber.key,
+            );
           }
         }
         lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
@@ -309,7 +392,12 @@ function ChildReconciler(shouldTrackSideEffects) {
     return resultingFirstChild;
   }
 
-  function reconcileSingleTextNode(returnFiber, currentFirstChild, textContent, expirationTime) {
+  function reconcileSingleTextNode(
+    returnFiber,
+    currentFirstChild,
+    textContent,
+    expirationTime,
+  ) {
     if (currentFirstChild != null && currentFirstChild.tag === HostText) {
       deleteRemainingChildren(returnFiber, currentFirstChild.sibling);
       const existing = useFiber(currentFirstChild, textContent, expirationTime);
@@ -318,12 +406,21 @@ function ChildReconciler(shouldTrackSideEffects) {
       return existing;
     }
     deleteRemainingChildren(returnFiber, currentFirstChild);
-    const created = createFiberFromText(textContent);
+    const created = createFiberFromText(
+      textContent,
+      returnFiber.mode,
+      expirationTime,
+    );
     created.return = returnFiber;
     return created;
   }
 
-  function reconcileSingleElement(returnFiber, currentFirstChild, element, expirationTime) {
+  function reconcileSingleElement(
+    returnFiber,
+    currentFirstChild,
+    element,
+    expirationTime,
+  ) {
     const key = element.key;
     let child = currentFirstChild;
     while (child != null) {
@@ -344,23 +441,51 @@ function ChildReconciler(shouldTrackSideEffects) {
       child = child.sibling;
     }
 
-    const created = createFiberFromElement(element, expirationTime);
+    const created = createFiberFromElement(
+      element,
+      returnFiber.mode,
+      expirationTime,
+    );
     created.return = returnFiber;
     return created;
   }
 
-  function reconcileChildFibers(returnFiber, currentFirstChild, newChild, expirationTime) {
+  function reconcileChildFibers(
+    returnFiber,
+    currentFirstChild,
+    newChild,
+    expirationTime,
+  ) {
     const isObject = typeof newChild === "object" && newChild != null;
     if (isObject && newChild.$$typeof === REACT_ELEMENT_TYPE) {
-      return placeSingleChild(reconcileSingleElement(returnFiber, currentFirstChild, newChild, expirationTime));
+      return placeSingleChild(
+        reconcileSingleElement(
+          returnFiber,
+          currentFirstChild,
+          newChild,
+          expirationTime,
+        ),
+      );
     }
 
     if (typeof newChild === "string" || typeof newChild === "number") {
-      return placeSingleChild(reconcileSingleTextNode(returnFiber, currentFirstChild, "" + newChild, expirationTime));
+      return placeSingleChild(
+        reconcileSingleTextNode(
+          returnFiber,
+          currentFirstChild,
+          "" + newChild,
+          expirationTime,
+        ),
+      );
     }
 
     if (Array.isArray(newChild)) {
-      return reconcileChildrenArray(returnFiber, currentFirstChild, newChild, expirationTime);
+      return reconcileChildrenArray(
+        returnFiber,
+        currentFirstChild,
+        newChild,
+        expirationTime,
+      );
     }
 
     return deleteRemainingChildren(returnFiber, currentFirstChild);
@@ -373,20 +498,28 @@ export const reconcileChildFibers = ChildReconciler(true);
 
 export const mountChildFibers = ChildReconciler(false);
 
-export function cloneChildFibers(workInProgress) {
+export function cloneChildFibers(current, workInProgress) {
   if (workInProgress.child == null) {
     return;
   }
 
   let currentChild = workInProgress.child;
-  let newChild = createWorkInProgress(currentChild, currentChild.pendingProps, currentChild.expirationTime);
+  let newChild = createWorkInProgress(
+    currentChild,
+    currentChild.pendingProps,
+    currentChild.expirationTime,
+  );
   newChild.pendingProps = currentChild.pendingProps;
   workInProgress.child = newChild;
 
   newChild.return = workInProgress;
   while (currentChild.sibling != null) {
     currentChild = currentChild.sibling;
-    newChild = newChild.sibling = createWorkInProgress(currentChild, currentChild.pendingProps, currentChild.expirationTime);
+    newChild = newChild.sibling = createWorkInProgress(
+      currentChild,
+      currentChild.pendingProps,
+      currentChild.expirationTime,
+    );
     newChild.pendingProps = currentChild.pendingProps;
     newChild.return = workInProgress;
   }
@@ -398,7 +531,9 @@ function throwOnInvalidObjectType(returnFiber, newChild) {
     let addendum = "";
     if (__DEV__) {
       addendum =
-        " If you meant to render a collection of children, use an array " + "instead." + (getCurrentFiberStackAddendum() || "");
+        " If you meant to render a collection of children, use an array " +
+        "instead." +
+        (getCurrentFiberStackAddendum() || "");
     }
     invariant(
       false,
@@ -406,7 +541,7 @@ function throwOnInvalidObjectType(returnFiber, newChild) {
       Object.prototype.toString.call(newChild) === "[object Object]"
         ? "object with keys {" + Object.keys(newChild).join(", ") + "}"
         : newChild,
-      addendum
+      addendum,
     );
   }
 }

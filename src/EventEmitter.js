@@ -1,4 +1,8 @@
-import { performWork, batchedUpdates } from "./FiberScheduler";
+import {
+  batchedUpdates,
+  flushInteractiveUpdates,
+  interactiveUpdates,
+} from "./FiberScheduler";
 import {
   getClosestInstanceFromNode,
   getFiberCurrentPropsFromNode,
@@ -51,7 +55,12 @@ function dispatchEvent(name, event) {
     );
 
     if (typeof listener === "function") {
-      batchedUpdates(listener, event);
+      if (isInteractiveTopLevelEventType(name)) {
+        flushInteractiveUpdates();
+        interactiveUpdates(listener, event);
+      } else {
+        batchedUpdates(listener, event);
+      }
     }
   }
 }
@@ -60,4 +69,8 @@ function getListener(inst, registrationName) {
   const props = getFiberCurrentPropsFromNode(inst.stateNode);
 
   return props[registrationName];
+}
+
+function isInteractiveTopLevelEventType(name) {
+  return name === "click";
 }
