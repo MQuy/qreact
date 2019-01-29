@@ -5,6 +5,7 @@ import {
   HostText,
   ClassComponent,
   Mode,
+  FunctionalComponent,
 } from "./TypeOfWork";
 import { REACT_ASYNC_MODE_TYPE, REACT_STRICT_MODE_TYPE } from "./createElement";
 import { AsyncMode, StrictMode } from "./TypeOfMode";
@@ -95,7 +96,11 @@ export function createFiberFromElement(element, mode, expirationTime) {
 
   let fiberTag;
   if (typeof type === "function") {
-    fiberTag = ClassComponent;
+    if (shouldConstruct(type)) {
+      fiberTag = ClassComponent;
+    } else {
+      fiberTag = FunctionalComponent;
+    }
   } else if (typeof type === "string") {
     fiberTag = HostComponent;
   } else {
@@ -109,7 +114,7 @@ export function createFiberFromElement(element, mode, expirationTime) {
         mode |= StrictMode;
         break;
       default: {
-        if (typeof type === "object" && type !== null) {
+        if (typeof type === "object" && type != null) {
           if (typeof type.tag === "number") {
             // Currently assumed to be a continuation and therefore is a
             // fiber already.
@@ -144,20 +149,7 @@ export function createFiberFromText(content, mode, expirationTime) {
   return fiber;
 }
 
-function createFiberFromElementType(type, key) {
-  let fiber;
-  if (typeof type === "function") {
-    fiber = new FiberNode(ClassComponent, key);
-    fiber.type = type;
-  } else if (typeof type === "string") {
-    fiber = new FiberNode(HostComponent, key);
-    fiber.type = type;
-  } else if (
-    typeof type === "object" &&
-    type != null &&
-    typeof type.tag === "number"
-  ) {
-    fiber = type;
-  }
-  return fiber;
+function shouldConstruct(Component) {
+  const prototype = Component.prototype;
+  return !!(prototype && prototype.isReactComponent);
 }

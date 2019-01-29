@@ -14,6 +14,8 @@ export class Component {
     insertUpdateIntoFiber(fiber, update);
     scheduleWork(fiber, expirationTime);
   }
+
+  isReactComponent = {};
 }
 
 export const ReactInstanceMap = {

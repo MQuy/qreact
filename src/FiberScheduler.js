@@ -348,7 +348,7 @@ function computeInteractiveExpiration(currentTime) {
   return computeExpirationBucket(currentTime, expirationMs, bucketSizeMs);
 }
 
-function recalculateCurrentTime() {
+export function recalculateCurrentTime() {
   mostRecentCurrentTime = msToExpirationTime(performance.now());
   return mostRecentCurrentTime;
 }

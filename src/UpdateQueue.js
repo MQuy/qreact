@@ -10,21 +10,21 @@ export function insertUpdateIntoFiber(fiber, update) {
   }
 
   let queue2 = null;
-  if (alternateFiber !== null) {
+  if (alternateFiber != null) {
     queue2 = alternateFiber.updateQueue;
-    if (queue2 === null) {
+    if (queue2 == null) {
       queue2 = alternateFiber.updateQueue = createUpdateQueue();
     }
   }
 
   // If there's only one queue, add the update to that queue and exit.
-  if (queue2 === null) {
+  if (queue2 == null) {
     insertUpdateIntoQueue(queue1, update);
     return;
   }
 
   // If either queue is empty, we need to add to both queues.
-  if (queue1.last === null || queue2.last === null) {
+  if (queue1.last == null || queue2.last == null) {
     insertUpdateIntoQueue(queue1, update);
     insertUpdateIntoQueue(queue2, update);
     return;

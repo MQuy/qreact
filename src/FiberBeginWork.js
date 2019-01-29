@@ -14,11 +14,32 @@ import {
   HostText,
   Mode,
 } from "./TypeOfWork";
+import { prepareToUseHooks, finishHooks, bailoutHooks } from "./FiberHooks";
+
+let didReceiveUpdate = false;
 
 export function beginWork(current, workInProgress, renderExpirationTime) {
+  const updateExpirationTime = workInProgress.expirationTime;
+
+  if (current != null) {
+    if (current.memoizedProps !== workInProgress.pendingProps) {
+      didReceiveUpdate = true;
+    } else if (updateExpirationTime < renderExpirationTime) {
+      didReceiveUpdate = false;
+    }
+  } else {
+    didReceiveUpdate = false;
+  }
+
   switch (workInProgress.tag) {
     case FunctionalComponent:
-      return updateFunctionalComponent(current, workInProgress);
+      const Component = workInProgress.type;
+      return updateFunctionalComponent(
+        current,
+        workInProgress,
+        Component,
+        renderExpirationTime,
+      );
     case ClassComponent:
       return updateClassComponent(
         current,
@@ -54,17 +75,27 @@ export function updateHostRoot(current, workInProgress, renderExpirationTime) {
   return bailoutOnAlreadyFinishedWork(current, workInProgress);
 }
 
-export function updateFunctionalComponent(current, workInProgress) {
+export function updateFunctionalComponent(
+  current,
+  workInProgress,
+  Component,
+  renderExpirationTime,
+) {
   let fn = workInProgress.type;
   let nextProps = workInProgress.pendingProps;
 
-  const memoizedProps = workInProgress.memoizedProps;
+  prepareToUseHooks(current, workInProgress, renderExpirationTime);
+  let nextChildren = fn(nextProps);
+  nextChildren = finishHooks(Component, nextProps, nextChildren);
 
-  if (nextProps == null || memoizedProps === nextProps) {
-    return bailoutOnAlreadyFinishedWork(current, workInProgress);
+  if (current != null && !didReceiveUpdate) {
+    bailoutHooks(current, workInProgress, renderExpirationTime);
+    return bailoutOnAlreadyFinishedWork(
+      current,
+      workInProgress,
+      renderExpirationTime,
+    );
   }
-
-  nextChildren = fn(nextProps);
 
   workInProgress.effectTag |= PerformedWork;
   reconcileChildren(current, workInProgress, nextChildren);
@@ -211,10 +242,14 @@ function reconcileChildren(current, workInProgress, nextChildren) {
 
 function updateMode(current, workInProgress) {
   const nextChildren = workInProgress.pendingProps.children;
-  if (nextChildren === null || workInProgress.memoizedProps === nextChildren) {
+  if (nextChildren == null || workInProgress.memoizedProps === nextChildren) {
     return bailoutOnAlreadyFinishedWork(current, workInProgress);
   }
   reconcileChildren(current, workInProgress, nextChildren);
   workInProgress.memoizedProps = nextChildren;
   return workInProgress.child;
+}
+
+export function markWorkInProgressReceivedUpdate() {
+  didReceiveUpdate = true;
 }

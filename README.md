@@ -9,6 +9,6 @@ The dead simple implementation of React for the learning purpose on how React wo
 - [x] Global event handler
 - [x] Fiber
 - [x] Priority
-- [ ] Hooks
+- [x] Hooks
 - [ ] Suspend
 - [ ] Synthetic event
