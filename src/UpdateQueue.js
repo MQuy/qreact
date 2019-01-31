@@ -52,12 +52,6 @@ function insertUpdateIntoQueue(queue, update) {
     queue.last.next = update;
     queue.last = update;
   }
-  if (
-    queue.expirationTime === NoWork ||
-    queue.expirationTime > update.expirationTime
-  ) {
-    queue.expirationTime = update.expirationTime;
-  }
 }
 
 export function createUpdate(partialState, expirationTime) {
@@ -67,17 +61,6 @@ export function createUpdate(partialState, expirationTime) {
     next: null,
     callback: null,
   };
-}
-
-export function getUpdateExpirationTime(fiber) {
-  if (fiber.tag !== ClassComponent && fiber.tag !== HostRoot) {
-    return NoWork;
-  }
-  var updateQueue = fiber.updateQueue;
-  if (updateQueue == null) {
-    return NoWork;
-  }
-  return updateQueue.expirationTime;
 }
 
 export function processUpdateQueue(
@@ -92,7 +75,6 @@ export function processUpdateQueue(
     // We need to create a work-in-progress queue, by cloning the current queue.
     const currentQueue = queue;
     queue = workInProgress.updateQueue = {
-      expirationTime: currentQueue.expirationTime,
       first: currentQueue.first,
       last: currentQueue.last,
     };
@@ -109,21 +91,22 @@ export function processUpdateQueue(
   let state = workInProgress.memoizedState;
   let update = queue.first;
   let didSkip = false;
+  let newExpirationTime = NoWork;
   while (update != null) {
     const updateExpirationTime = update.expirationTime;
     if (updateExpirationTime > renderExpirationTime) {
       // This update does not have sufficient priority. Skip it.
-      const remainingExpirationTime = queue.expirationTime;
-      if (
-        remainingExpirationTime === NoWork ||
-        remainingExpirationTime > updateExpirationTime
-      ) {
-        // Update the remaining expiration time.
-        queue.expirationTime = updateExpirationTime;
-      }
       if (!didSkip) {
         didSkip = true;
         queue.baseState = state;
+      }
+      // Since this update will remain in the list, update the remaining
+      // expiration time.
+      if (
+        newExpirationTime === NoWork ||
+        newExpirationTime > updateExpirationTime
+      ) {
+        newExpirationTime = updateExpirationTime;
       }
       // Continue to the next update.
       update = update.next;
@@ -142,7 +125,7 @@ export function processUpdateQueue(
     }
 
     // Process the update
-    let partialState = update.partialState;
+    let partialState = getStateFromUpdate(update, instance, state, props);
     if (partialState) {
       state = Object.assign({}, state, partialState);
     }
@@ -154,5 +137,22 @@ export function processUpdateQueue(
     queue.baseState = state;
   }
 
-  return state;
+  // Set the remaining expiration time to be whatever is remaining in the queue.
+  // This should be fine because the only two other things that contribute to
+  // expiration time are props and context. We're already in the middle of the
+  // begin phase by the time we start processing the queue, so we've already
+  // dealt with the props. Context in components that specify
+  // shouldComponentUpdate is tricky; but we'll have to account for
+  // that regardless.
+  workInProgress.expirationTime = newExpirationTime;
+  workInProgress.memoizedState = state;
+}
+
+function getStateFromUpdate(update, instance, prevState, props) {
+  const partialState = update.partialState;
+  if (typeof partialState === "function") {
+    return partialState.call(instance, prevState, props);
+  } else {
+    return partialState;
+  }
 }

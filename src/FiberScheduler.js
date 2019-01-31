@@ -17,11 +17,12 @@ import {
   Never,
   computeExpirationBucket,
 } from "./FiberExpirationTime";
-import { getUpdateExpirationTime } from "./UpdateQueue";
 import { AsyncMode } from "./TypeOfMode";
 
 const timeHeuristicForUnitOfWork = 1;
+let nextFlushedExpirationTime = NoWork;
 let nextFlushedRoot = null;
+let firstScheduledRoot = null;
 let lastScheduledRoot = null;
 let nextUnitOfWork = null;
 let nextEffect = null;
@@ -36,48 +37,71 @@ let nextRenderExpirationTime = NoWork;
 let mostRecentCurrentTime = msToExpirationTime(0);
 
 export function scheduleWork(fiber, expirationTime) {
-  let node = fiber;
-  while (node != null) {
-    if (
-      node.expirationTime === NoWork ||
-      node.expirationTime > expirationTime
-    ) {
-      node.expirationTime = expirationTime;
-    }
-    if (node.alternate != null) {
-      if (
-        node.alternate.expirationTime === NoWork ||
-        node.alternate.expirationTime > expirationTime
-      ) {
-        node.alternate.expirationTime = expirationTime;
-      }
-    }
-    if (node["return"] == null) {
-      if (node.tag === HostRoot) {
-        var root = node.stateNode;
-
-        requestWork(root, expirationTime);
-      } else {
-        return;
-      }
-    }
-    node = node["return"];
+  const root = scheduleWorkToRoot(fiber, expirationTime);
+  if (
+    // If we're in the render phase, we don't need to schedule this root
+    // for an update, because we'll do it before we exit...
+    !isWorking ||
+    isCommitting ||
+    root
+  ) {
+    const rootExpirationTime = root.expirationTime;
+    requestWork(root, rootExpirationTime);
   }
 }
 
-function requestWork(root, expirationTime) {
-  if (!nextFlushedRoot) {
-    lastScheduledRoot = nextFlushedRoot = root;
-    root.remainingExpirationTime = expirationTime;
-  } else {
-    const remainingExpirationTime = root.remainingExpirationTime;
-    if (
-      remainingExpirationTime === NoWork ||
-      expirationTime < remainingExpirationTime
-    ) {
-      root.remainingExpirationTime = expirationTime;
-    }
+function scheduleWorkToRoot(fiber, expirationTime) {
+  // Update the source fiber's expiration time
+  if (
+    fiber.expirationTime === NoWork ||
+    fiber.expirationTime > expirationTime
+  ) {
+    fiber.expirationTime = expirationTime;
   }
+  let alternate = fiber.alternate;
+  if (
+    alternate != null &&
+    (alternate.expirationTime === NoWork ||
+      alternate.expirationTime > expirationTime)
+  ) {
+    alternate.expirationTime = expirationTime;
+  }
+  // Walk the parent path to the root and update the child expiration time.
+  let node = fiber.return;
+  if (node == null && fiber.tag === HostRoot) {
+    return fiber.stateNode;
+  }
+  while (node != null) {
+    alternate = node.alternate;
+    if (
+      node.childExpirationTime === NoWork ||
+      node.childExpirationTime > expirationTime
+    ) {
+      node.childExpirationTime = expirationTime;
+      if (
+        alternate != null &&
+        (alternate.childExpirationTime === NoWork ||
+          alternate.childExpirationTime > expirationTime)
+      ) {
+        alternate.childExpirationTime = expirationTime;
+      }
+    } else if (
+      alternate != null &&
+      (alternate.childExpirationTime === NoWork ||
+        alternate.childExpirationTime > expirationTime)
+    ) {
+      alternate.childExpirationTime = expirationTime;
+    }
+    if (node.return == null && node.tag === HostRoot) {
+      return node.stateNode;
+    }
+    node = node.return;
+  }
+  return null;
+}
+
+function requestWork(root, expirationTime) {
+  addRootToSchedule(root, expirationTime);
 
   if (isBatchingUpdates || isRendering) {
     return;
@@ -89,6 +113,33 @@ function requestWork(root, expirationTime) {
   }
 }
 
+function addRootToSchedule(root, expirationTime) {
+  // Add the root to the schedule.
+  // Check if this root is already part of the schedule.
+  if (root.nextScheduledRoot == null) {
+    // This root is not already scheduled. Add it.
+    root.remainingExpirationTime = expirationTime;
+    if (lastScheduledRoot == null) {
+      firstScheduledRoot = lastScheduledRoot = root;
+      root.nextScheduledRoot = root;
+    } else {
+      lastScheduledRoot.nextScheduledRoot = root;
+      lastScheduledRoot = root;
+      lastScheduledRoot.nextScheduledRoot = firstScheduledRoot;
+    }
+  } else {
+    // This root is already scheduled, but its priority may have increased.
+    var remainingExpirationTime = root.remainingExpirationTime;
+    if (
+      remainingExpirationTime === NoWork ||
+      expirationTime < remainingExpirationTime
+    ) {
+      // Update the priority.
+      root.remainingExpirationTime = expirationTime;
+    }
+  }
+}
+
 function performAsyncWork(deadline) {
   performWork(NoWork, deadline);
 }
@@ -97,22 +148,102 @@ function performSyncWork() {
   performWork(Sync, null);
 }
 
-export function performWork(minExpirationTime, deadline) {
+function findHighestPriorityRoot() {
+  var highestPriorityWork = NoWork;
+  var highestPriorityRoot = null;
   if (lastScheduledRoot != null) {
-    nextFlushedRoot = lastScheduledRoot;
-  }
-  if (
-    minExpirationTime === NoWork ||
-    nextFlushedRoot.remainingExpirationTime <= minExpirationTime
-  ) {
-    performWorkOnRoot(
-      nextFlushedRoot,
-      nextFlushedRoot.remainingExpirationTime,
-      deadline,
-    );
+    var previousScheduledRoot = lastScheduledRoot;
+    var root = firstScheduledRoot;
+    while (root != null) {
+      var remainingExpirationTime = root.remainingExpirationTime;
+      if (remainingExpirationTime === NoWork) {
+        // This root no longer has work. Remove it from the scheduler.
+
+        // TODO: This check is redudant, but Flow is confused by the branch
+        // below where we set lastScheduledRoot to null, even though we break
+        // from the loop right after.
+        !(previousScheduledRoot != null && lastScheduledRoot != null)
+          ? invariant(
+              false,
+              "Should have a previous and last root. This error is likely caused by a bug in React. Please file an issue.",
+            )
+          : void 0;
+        if (root === root.nextScheduledRoot) {
+          // This is the only root in the list.
+          root.nextScheduledRoot = null;
+          firstScheduledRoot = lastScheduledRoot = null;
+          break;
+        } else if (root === firstScheduledRoot) {
+          // This is the first root in the list.
+          var next = root.nextScheduledRoot;
+          firstScheduledRoot = next;
+          lastScheduledRoot.nextScheduledRoot = next;
+          root.nextScheduledRoot = null;
+        } else if (root === lastScheduledRoot) {
+          // This is the last root in the list.
+          lastScheduledRoot = previousScheduledRoot;
+          lastScheduledRoot.nextScheduledRoot = firstScheduledRoot;
+          root.nextScheduledRoot = null;
+          break;
+        } else {
+          previousScheduledRoot.nextScheduledRoot = root.nextScheduledRoot;
+          root.nextScheduledRoot = null;
+        }
+        root = previousScheduledRoot.nextScheduledRoot;
+      } else {
+        if (
+          highestPriorityWork === NoWork ||
+          remainingExpirationTime < highestPriorityWork
+        ) {
+          // Update the priority, if it's higher
+          highestPriorityWork = remainingExpirationTime;
+          highestPriorityRoot = root;
+        }
+        if (root === lastScheduledRoot) {
+          break;
+        }
+        previousScheduledRoot = root;
+        root = root.nextScheduledRoot;
+      }
+    }
   }
 
-  if (nextFlushedRoot.remainingExpirationTime == NoWork) {
+  // If the next root is the same as the previous root, this is a nested
+  // update. To prevent an infinite loop, increment the nested update count.
+  nextFlushedRoot = highestPriorityRoot;
+  nextFlushedExpirationTime = highestPriorityWork;
+}
+
+function performWork(minExpirationTime, deadline) {
+  // Keep working on roots until there's no more work, or until the we reach
+  // the deadline.
+  findHighestPriorityRoot();
+
+  if (deadline) {
+    while (
+      nextFlushedRoot != null &&
+      nextFlushedExpirationTime !== NoWork &&
+      (minExpirationTime === NoWork ||
+        minExpirationTime >= nextFlushedExpirationTime) &&
+      (deadline.timeRemaining() > timeHeuristicForUnitOfWork ||
+        recalculateCurrentTime() >= nextFlushedExpirationTime)
+    ) {
+      performWorkOnRoot(nextFlushedRoot, nextFlushedExpirationTime, deadline);
+      findHighestPriorityRoot();
+    }
+  } else {
+    while (
+      nextFlushedRoot != null &&
+      nextFlushedExpirationTime !== NoWork &&
+      (minExpirationTime === NoWork ||
+        minExpirationTime >= nextFlushedExpirationTime)
+    ) {
+      performWorkOnRoot(nextFlushedRoot, nextFlushedExpirationTime, false);
+      findHighestPriorityRoot();
+    }
+  }
+
+  if (nextFlushedExpirationTime === NoWork) {
     nextFlushedRoot = null;
   } else {
     requestIdleCallback(performAsyncWork);
@@ -187,7 +318,7 @@ function renderRoot(root, expirationTime, deadline) {
   return root.isReadyForCommit ? root.current.alternate : null;
 }
 
-export function workLoop(expirationTime, deadline) {
+function workLoop(expirationTime, deadline) {
   if (
     nextRenderExpirationTime === NoWork ||
     nextRenderExpirationTime > expirationTime
@@ -214,6 +345,7 @@ export function workLoop(expirationTime, deadline) {
 function performUnitOfWork(workInProgress) {
   const current = workInProgress.alternate;
   let next = beginWork(current, workInProgress, nextRenderExpirationTime);
+  workInProgress.memoizedProps = workInProgress.pendingProps;
   if (next == null) {
     next = completeUnitOfWork(workInProgress);
   }
@@ -228,7 +360,7 @@ function completeUnitOfWork(workInProgress) {
     let returnFiber = workInProgress.return;
     let siblingFiber = workInProgress.sibling;
 
-    resetExpirationTime(workInProgress, nextRenderExpirationTime);
+    resetChildExpirationTime(workInProgress, nextRenderExpirationTime);
 
     if (next != null) {
       return next;
@@ -400,30 +532,28 @@ export function computeExpirationForFiber(fiber) {
   return expirationTime;
 }
 
-function resetExpirationTime(workInProgress, renderTime) {
+function resetChildExpirationTime(workInProgress, renderTime) {
   if (renderTime !== Never && workInProgress.expirationTime === Never) {
     // The children of this component are hidden. Don't bubble their
     // expiration times.
     return;
   }
 
-  // Check for pending updates.
-  let newExpirationTime = getUpdateExpirationTime(workInProgress);
+  let newChildExpirationTime = NoWork;
 
-  // TODO: Calls need to visit stateNode
-
-  // Bubble up the earliest expiration time.
   let child = workInProgress.child;
   while (child != null) {
-    if (
-      child.expirationTime !== NoWork &&
-      (newExpirationTime === NoWork || newExpirationTime > child.expirationTime)
-    ) {
-      newExpirationTime = child.expirationTime;
+    const childUpdateExpirationTime = child.expirationTime;
+    const childChildExpirationTime = child.childExpirationTime;
+    if (childUpdateExpirationTime > newChildExpirationTime) {
+      newChildExpirationTime = childUpdateExpirationTime;
+    }
+    if (childChildExpirationTime > newChildExpirationTime) {
+      newChildExpirationTime = childChildExpirationTime;
     }
     child = child.sibling;
   }
-  workInProgress.expirationTime = newExpirationTime;
+  workInProgress.childExpirationTime = newChildExpirationTime;
 }
 
 export function flushInteractiveUpdates() {

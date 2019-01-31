@@ -3,7 +3,7 @@ import {
   createFiberFromElement,
   createFiberFromText,
 } from "./Fiber";
-import { NoEffect, Deletion, Placement } from "./TypeOfSideEffect";
+import { Deletion, Placement } from "./TypeOfSideEffect";
 import { HostText } from "./TypeOfWork";
 import { REACT_ELEMENT_TYPE } from "./createElement";
 

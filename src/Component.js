@@ -15,7 +15,7 @@ export class Component {
     scheduleWork(fiber, expirationTime);
   }
 
-  isReactComponent = {};
+  isReactComponent() {}
 }
 
 export const ReactInstanceMap = {

@@ -15,6 +15,7 @@ import {
   Mode,
 } from "./TypeOfWork";
 import { prepareToUseHooks, finishHooks, bailoutHooks } from "./FiberHooks";
+import { NoWork } from "./FiberExpirationTime";
 
 let didReceiveUpdate = false;
 
@@ -26,15 +27,23 @@ export function beginWork(current, workInProgress, renderExpirationTime) {
       didReceiveUpdate = true;
     } else if (updateExpirationTime < renderExpirationTime) {
       didReceiveUpdate = false;
+      return bailoutOnAlreadyFinishedWork(
+        current,
+        workInProgress,
+        renderExpirationTime,
+      );
     }
   } else {
     didReceiveUpdate = false;
   }
 
+  // Before entering the begin phase, clear the expiration time.
+  workInProgress.expirationTime = NoWork;
+
   switch (workInProgress.tag) {
     case FunctionalComponent:
       const Component = workInProgress.type;
-      return updateFunctionalComponent(
+      return updateFunctionComponent(
         current,
         workInProgress,
         Component,
@@ -49,33 +58,47 @@ export function beginWork(current, workInProgress, renderExpirationTime) {
     case HostRoot:
       return updateHostRoot(current, workInProgress, renderExpirationTime);
     case HostComponent:
-      return updateHostComponent(current, workInProgress);
+      return updateHostComponent(current, workInProgress, renderExpirationTime);
     case HostText:
       return updateHostText(current, workInProgress);
     case Mode:
-      return updateMode(current, workInProgress);
+      return updateMode(current, workInProgress, renderExpirationTime);
   }
 }
 
-export function updateHostRoot(current, workInProgress, renderExpirationTime) {
-  let updateQueue = workInProgress.updateQueue;
-  if (updateQueue != null) {
-    let state = processUpdateQueue(
+function updateHostRoot(current, workInProgress, renderExpirationTime) {
+  const updateQueue = workInProgress.updateQueue;
+  const nextProps = workInProgress.pendingProps;
+  const prevState = workInProgress.memoizedState;
+  const prevChildren = prevState != null ? prevState.element : null;
+  processUpdateQueue(
+    current,
+    workInProgress,
+    updateQueue,
+    nextProps,
+    null,
+    renderExpirationTime,
+  );
+  const nextState = workInProgress.memoizedState;
+  const nextChildren = nextState.element;
+
+  if (nextChildren === prevChildren) {
+    return bailoutOnAlreadyFinishedWork(
       current,
       workInProgress,
-      updateQueue,
-      null,
-      null,
       renderExpirationTime,
     );
-    reconcileChildren(current, workInProgress, state.element);
-    workInProgress.memoizedState = state;
-    return workInProgress.child;
   }
-  return bailoutOnAlreadyFinishedWork(current, workInProgress);
+  reconcileChildren(
+    current,
+    workInProgress,
+    nextChildren,
+    renderExpirationTime,
+  );
+  return workInProgress.child;
 }
 
-export function updateFunctionalComponent(
+function updateFunctionComponent(
   current,
   workInProgress,
   Component,
@@ -98,12 +121,16 @@ export function updateFunctionalComponent(
   }
 
   workInProgress.effectTag |= PerformedWork;
-  reconcileChildren(current, workInProgress, nextChildren);
-  workInProgress.memoizedProps = nextProps;
+  reconcileChildren(
+    current,
+    workInProgress,
+    nextChildren,
+    renderExpirationTime,
+  );
   return workInProgress.child;
 }
 
-export function updateHostText(current, workInProgress) {
+function updateHostText(current, workInProgress) {
   if (current == null) {
     workInProgress.effectTag |= Placement;
   }
@@ -112,28 +139,23 @@ export function updateHostText(current, workInProgress) {
   return null;
 }
 
-export function updateHostComponent(current, workInProgress) {
+function updateHostComponent(current, workInProgress, renderExpirationTime) {
   if (current == null) {
     workInProgress.effectTag |= Placement;
   }
   const memoizedProps = workInProgress.memoizedProps;
   let nextProps = workInProgress.pendingProps || memoizedProps;
-
-  if (nextProps == null || memoizedProps === nextProps) {
-    return bailoutOnAlreadyFinishedWork(current, workInProgress);
-  }
-
   let nextChildren = nextProps.children;
-  reconcileChildren(current, workInProgress, nextChildren);
-  workInProgress.memoizedProps = nextProps;
+  reconcileChildren(
+    current,
+    workInProgress,
+    nextChildren,
+    renderExpirationTime,
+  );
   return workInProgress.child;
 }
 
-export function updateClassComponent(
-  current,
-  workInProgress,
-  renderExpirationTime,
-) {
+function updateClassComponent(current, workInProgress, renderExpirationTime) {
   let shouldUpdate;
   if (current == null) {
     if (!workInProgress.stateNode) {
@@ -153,7 +175,12 @@ export function updateClassComponent(
       renderExpirationTime,
     );
   }
-  return finishClassComponent(current, workInProgress, shouldUpdate);
+  return finishClassComponent(
+    current,
+    workInProgress,
+    shouldUpdate,
+    renderExpirationTime,
+  );
 }
 
 function updateClassInstance(current, workInProgress, renderExpirationTime) {
@@ -191,28 +218,63 @@ function updateClassInstance(current, workInProgress, renderExpirationTime) {
   return true;
 }
 
-function finishClassComponent(current, workInProgress, shouldUpdate) {
+function finishClassComponent(
+  current,
+  workInProgress,
+  shouldUpdate,
+  renderExpirationTime,
+) {
   if (!shouldUpdate) {
-    return bailoutOnAlreadyFinishedWork(current, workInProgress);
+    return bailoutOnAlreadyFinishedWork(
+      current,
+      workInProgress,
+      renderExpirationTime,
+    );
   }
 
   const instance = workInProgress.stateNode;
   const nextChildren = instance.render();
 
   workInProgress.effectTag |= PerformedWork;
-  reconcileChildren(current, workInProgress, nextChildren);
+  reconcileChildren(
+    current,
+    workInProgress,
+    nextChildren,
+    renderExpirationTime,
+  );
   workInProgress.memoizedState = instance.state;
-  workInProgress.memoizedProps = instance.props;
   return workInProgress.child;
 }
 
-function bailoutOnAlreadyFinishedWork(current, workInProgress) {
-  cloneChildFibers(current, workInProgress);
-  return workInProgress.child;
+function bailoutOnAlreadyFinishedWork(
+  current,
+  workInProgress,
+  renderExpirationTime,
+) {
+  // Check if the children have any pending work.
+  const childExpirationTime = workInProgress.childExpirationTime;
+  if (
+    childExpirationTime === NoWork ||
+    childExpirationTime > renderExpirationTime
+  ) {
+    // The children don't have any work either. We can skip them.
+    // TODO: Once we add back resuming, we should check if the children are
+    // a work-in-progress set. If so, we need to transfer their effects.
+    return null;
+  } else {
+    // This fiber doesn't have work, but its subtree does. Clone the child
+    // fibers and continue.
+    cloneChildFibers(current, workInProgress);
+    return workInProgress.child;
+  }
 }
 
-function reconcileChildren(current, workInProgress, nextChildren) {
-  const renderExpirationTime = workInProgress.expirationTime;
+function reconcileChildren(
+  current,
+  workInProgress,
+  nextChildren,
+  renderExpirationTime,
+) {
   if (current == null) {
     // If this is a fresh new component that hasn't been rendered yet, we
     // won't update its child set by applying minimal side-effects. Instead,
@@ -240,13 +302,14 @@ function reconcileChildren(current, workInProgress, nextChildren) {
   }
 }
 
-function updateMode(current, workInProgress) {
+function updateMode(current, workInProgress, renderExpirationTime) {
   const nextChildren = workInProgress.pendingProps.children;
-  if (nextChildren == null || workInProgress.memoizedProps === nextChildren) {
-    return bailoutOnAlreadyFinishedWork(current, workInProgress);
-  }
-  reconcileChildren(current, workInProgress, nextChildren);
-  workInProgress.memoizedProps = nextChildren;
+  reconcileChildren(
+    current,
+    workInProgress,
+    nextChildren,
+    renderExpirationTime,
+  );
   return workInProgress.child;
 }
 

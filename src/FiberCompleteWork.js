@@ -13,16 +13,7 @@ import {
 import { Never } from "./FiberExpirationTime";
 
 export function completeWork(current, workInProgress, renderExpirationTime) {
-  let newProps = workInProgress.pendingProps;
-  if (newProps == null) {
-    newProps = workInProgress.memoizedProps;
-  } else if (
-    workInProgress.expirationTime !== Never ||
-    renderExpirationTime === Never
-  ) {
-    // Reset the pending props, unless this was a down-prioritization.
-    workInProgress.pendingProps = null;
-  }
+  const newProps = workInProgress.pendingProps;
 
   switch (workInProgress.tag) {
     case FunctionalComponent:

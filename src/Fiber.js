@@ -9,6 +9,7 @@ import {
 } from "./TypeOfWork";
 import { REACT_ASYNC_MODE_TYPE, REACT_STRICT_MODE_TYPE } from "./createElement";
 import { AsyncMode, StrictMode } from "./TypeOfMode";
+import { NoWork } from "./FiberExpirationTime";
 
 export class FiberNode {
   constructor(tag, pendingProps, key, mode) {
@@ -31,11 +32,16 @@ export class FiberNode {
     this.memoizedState = null;
 
     this.mode = mode;
+
     // Effects
     this.effectTag = NoEffect;
     this.nextEffect = null;
     this.firstEffect = null;
     this.lastEffect = null;
+
+    this.expirationTime = NoWork;
+    this.childExpirationTime = NoWork;
+
     this.alternate = null;
   }
 }
@@ -43,6 +49,11 @@ export class FiberNode {
 export function createWorkInProgress(current, pendingProps, expirationTime) {
   let workInProgress = current.alternate;
   if (workInProgress == null) {
+    // We use a double buffering pooling technique because we know that we'll
+    // only ever need at most two versions of a tree. We pool the "other" unused
+    // node that we're free to reuse. This is lazily created to avoid allocating
+    // extra objects for things that are never updated. It also allow us to
+    // reclaim the extra memory if needed.
     workInProgress = new FiberNode(
       current.tag,
       pendingProps,
@@ -55,21 +66,34 @@ export function createWorkInProgress(current, pendingProps, expirationTime) {
     workInProgress.alternate = current;
     current.alternate = workInProgress;
   } else {
+    workInProgress.pendingProps = pendingProps;
+
+    // We already have an alternate.
+    // Reset the effect tag.
     workInProgress.effectTag = NoEffect;
 
+    // The effect list is no longer valid.
     workInProgress.nextEffect = null;
     workInProgress.firstEffect = null;
     workInProgress.lastEffect = null;
   }
 
-  workInProgress.expirationTime = expirationTime;
-  workInProgress.pendingProps = pendingProps;
+  // Don't touching the subtree's expiration time, which has not changed.
+  workInProgress.childExpirationTime = current.childExpirationTime;
+  if (pendingProps !== current.pendingProps) {
+    // This fiber has new props.
+    workInProgress.expirationTime = expirationTime;
+  } else {
+    // This fiber's props have not changed.
+    workInProgress.expirationTime = current.expirationTime;
+  }
 
   workInProgress.child = current.child;
   workInProgress.memoizedProps = current.memoizedProps;
   workInProgress.memoizedState = current.memoizedState;
   workInProgress.updateQueue = current.updateQueue;
 
+  // These will be overridden during the parent's reconciliation
   workInProgress.sibling = current.sibling;
   workInProgress.index = current.index;
   workInProgress.ref = current.ref;
